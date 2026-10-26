@@ -1,0 +1,10 @@
+# Raw Arc Studio run logs contain short-lived preview tokens — never commit
+arc-studio/runs/
+node_modules/
+dist/
+out/
+cache/
+broadcast/
+.env
+.env.*
+!.env.example
