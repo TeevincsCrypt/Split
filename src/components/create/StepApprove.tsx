@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { ArrowLeft, CheckCircle2, Loader2, ExternalLink } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Loader2, ExternalLink, RefreshCw } from 'lucide-react'
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { erc20Abi } from 'viem'
 import { type SplitDraft } from '@/pages/CreateSplit'
@@ -18,21 +18,36 @@ export default function StepApprove({ draft, onBack, onNext }: Props) {
   const { totalAmountParsed: total } = draft
   const contractAddress = ACTIVE_NETWORK.distributorAddress!
 
-  const { data: allowance, refetch: refetchAllowance } = useReadContract({
+  const {
+    data: allowance,
+    refetch: refetchAllowance,
+    isLoading: allowanceLoading,
+    isError: allowanceError,
+  } = useReadContract({
     address: ACTIVE_NETWORK.usdcAddress,
     abi: erc20Abi,
     functionName: 'allowance',
     args: [address as `0x${string}`, contractAddress],
     chainId: ACTIVE_NETWORK.chainId,
+    query: { enabled: !!address },
   })
 
-  const { data: balance, refetch: refetchBalance } = useReadContract({
+  const {
+    data: balance,
+    refetch: refetchBalance,
+    isLoading: balanceLoading,
+    isError: balanceError,
+  } = useReadContract({
     address: ACTIVE_NETWORK.usdcAddress,
     abi: erc20Abi,
     functionName: 'balanceOf',
     args: [address as `0x${string}`],
     chainId: ACTIVE_NETWORK.chainId,
+    query: { enabled: !!address },
   })
+
+  const readsLoading = balanceLoading || allowanceLoading
+  const readsFailed = balanceError || allowanceError
 
   const sufficient = allowance !== undefined && total !== null && allowance >= total
   const hasBalance = balance !== undefined && total !== null && balance >= total
@@ -93,10 +108,29 @@ export default function StepApprove({ draft, onBack, onNext }: Props) {
 
       {/* Balance / allowance card */}
       <div className="card p-4 flex flex-col gap-2">
-        <Row label="Your balance" value={balance !== undefined ? `${formatUsdcAmount(balance, 2)} USDC` : '—'} />
-        <Row label="Current allowance" value={allowance !== undefined ? `${formatUsdcAmount(allowance, 2)} USDC` : '—'} />
+        <Row label="Your balance" value={balance !== undefined ? `${formatUsdcAmount(balance, 2)} USDC` : balanceLoading ? 'Checking…' : '—'} />
+        <Row label="Current allowance" value={allowance !== undefined ? `${formatUsdcAmount(allowance, 2)} USDC` : allowanceLoading ? 'Checking…' : '—'} />
         <Row label="Sufficient?" value={sufficient ? 'Yes' : 'No'} success={sufficient} />
       </div>
+
+      {/* Reads failed — explain instead of leaving a silently disabled button */}
+      {readsFailed && !readsLoading && (
+        <div className="rounded-2xl p-3.5 text-sm font-medium flex flex-col gap-2"
+          style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger)', color: 'var(--danger)' }}>
+          <span>
+            Couldn't read your USDC balance from {ACTIVE_NETWORK.name}. Check that your wallet is on{' '}
+            {ACTIVE_NETWORK.name} (chain {ACTIVE_NETWORK.chainId}) and try again.
+          </span>
+          <button
+            type="button"
+            onClick={() => { void refetchBalance(); void refetchAllowance() }}
+            className="self-start flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
+            style={{ background: '#FFFFFF', border: '1px solid var(--border)', color: 'var(--ink)' }}
+          >
+            <RefreshCw className="size-3.5" /> Retry
+          </button>
+        </div>
+      )}
 
       {/* Approval tx hash while confirming */}
       {approveTxHash && (isConfirming || isSuccess) && (

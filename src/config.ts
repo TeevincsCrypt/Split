@@ -5,7 +5,7 @@
  * Built with Arc Studio — https://studio.arc.io
  */
 
-import { http, createConfig } from 'wagmi'
+import { http, createConfig, fallback, unstable_connector } from 'wagmi'
 import { arcTestnet } from 'viem/chains'
 import { defineChain } from 'viem'
 import { injected } from 'wagmi/connectors'
@@ -45,6 +45,10 @@ export const config = createConfig({
   chains: [activeArcChain],
   connectors: [injected()],
   transports: {
-    [activeArcChain.id]: http(effectiveRpcUrl),
+    // Try each public endpoint in order, then the connected wallet's own RPC.
+    [activeArcChain.id]: fallback([
+      ...ACTIVE_NETWORK.rpcUrls.map((url) => http(url, { timeout: 10_000, retryCount: 1 })),
+      unstable_connector(injected),
+    ]),
   },
 })

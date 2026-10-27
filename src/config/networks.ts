@@ -13,6 +13,8 @@ export interface NetworkConfig {
   shortName?: string
   /** Effective RPC URL: VITE_SPLIT_RPC_URL override → proxy → onchain-facts default */
   rpcUrl: string
+  /** Ordered RPC endpoints tried by the fallback transport; rpcUrls[0] === rpcUrl */
+  rpcUrls: string[]
   explorerBase: string
   usdcAddress: `0x${string}`
   usdcDecimals: number
@@ -27,6 +29,25 @@ export interface NetworkConfig {
 const ARC_TESTNET_CHAIN_ID = 5042002
 const ARC_MAINNET_CHAIN_ID = 5042
 
+/**
+ * Extra public endpoints tried after the registry default. Arc's docs have listed
+ * rpc.testnet.arc.network, while viem and Arc Studio list rpc.testnet.arc.io; trying
+ * both keeps reads working whichever one a browser can reach.
+ */
+const EXTRA_PUBLIC_RPCS: Record<number, string[]> = {
+  [ARC_TESTNET_CHAIN_ID]: [
+    'https://rpc.testnet.arc.network',
+    'https://rpc.blockdaemon.testnet.arc.io',
+    'https://rpc.drpc.testnet.arc.io',
+    'https://rpc.quicknode.testnet.arc.io',
+  ],
+  [ARC_MAINNET_CHAIN_ID]: [],
+}
+
+function withFallbacks(primary: string, chainId: number): string[] {
+  return [...new Set([primary, ...(EXTRA_PUBLIC_RPCS[chainId] ?? [])])]
+}
+
 function buildNetworkConfig(chainId: number): Omit<NetworkConfig, 'distributorAddress' | 'deployBlock' | 'configError'> {
   const chain = requireChain(chainId)
   const usdc = getUsdc(chainId)
@@ -36,6 +57,7 @@ function buildNetworkConfig(chainId: number): Omit<NetworkConfig, 'distributorAd
     name: chain.name,
     shortName: chain.isTestnet ? 'Arc Testnet' : 'Arc',
     rpcUrl: chain.rpcUrls[0],
+    rpcUrls: withFallbacks(chain.rpcUrls[0], chain.chainId),
     explorerBase: chain.explorerBase,
     usdcAddress: usdc.address as `0x${string}`,
     usdcDecimals: usdc.decimals,
@@ -51,7 +73,7 @@ export const ARC_MAINNET_BASE = buildNetworkConfig(ARC_MAINNET_CHAIN_ID)
  * Priority: VITE_SPLIT_RPC_URL (custom override) > Arc Studio RPC proxy > onchain-facts default.
  * Returns { url, configError } — configError is set when VITE_SPLIT_RPC_URL is present but invalid.
  */
-function resolveRpcUrl(defaultUrl: string): { url: string; configError: string | null } {
+function resolveRpcUrl(defaultUrl: string, defaults: string[]): { url: string; urls: string[]; configError: string | null } {
   const proxyBase: string = (import.meta.env.VITE_RPC_PROXY_BASE_URL as string | undefined) ?? ''
   const proxyToken: string = (import.meta.env.VITE_RPC_PROXY_TOKEN as string | undefined) ?? ''
   const proxyChainsRaw: string = (import.meta.env.VITE_RPC_PROXY_CHAINS as string | undefined) ?? ''
@@ -62,23 +84,22 @@ function resolveRpcUrl(defaultUrl: string): { url: string; configError: string |
     if (!customRpc.startsWith('https://')) {
       return {
         url: defaultUrl,
+        urls: defaults,
         configError: `VITE_SPLIT_RPC_URL "${customRpc}" must be an https URL.`,
       }
     }
-    return { url: customRpc, configError: null }
+    return { url: customRpc, urls: [...new Set([customRpc, ...defaults])], configError: null }
   }
 
   // Arc Studio proxy (server-side env — only present inside Arc Studio)
   const proxyChainKey = defaultUrl.includes('testnet') || defaultUrl.includes('5042002') ? 'Arc_Testnet' : 'Arc'
   const proxyChains = proxyChainsRaw.split(',').map((s) => s.trim())
   if (proxyBase && proxyChains.includes(proxyChainKey) && proxyToken) {
-    return {
-      url: `${proxyBase}/api/rpc/${proxyChainKey}?_rpc_token=${proxyToken}`,
-      configError: null,
-    }
+    const proxied = `${proxyBase}/api/rpc/${proxyChainKey}?_rpc_token=${proxyToken}`
+    return { url: proxied, urls: [proxied], configError: null }
   }
 
-  return { url: defaultUrl, configError: null }
+  return { url: defaultUrl, urls: defaults, configError: null }
 }
 
 function resolveActiveNetwork(): NetworkConfig {
@@ -121,11 +142,12 @@ function resolveActiveNetwork(): NetworkConfig {
   }
 
   // Resolve effective RPC URL (custom override > proxy > default)
-  const { url: rpcUrl, configError: rpcError } = resolveRpcUrl(base.rpcUrl)
+  const { url: rpcUrl, urls: rpcUrls, configError: rpcError } = resolveRpcUrl(base.rpcUrl, base.rpcUrls)
   if (rpcError) {
     return {
       ...base,
       rpcUrl,
+      rpcUrls,
       distributorAddress: null,
       deployBlock: 0n,
       configError: rpcError,
@@ -135,6 +157,7 @@ function resolveActiveNetwork(): NetworkConfig {
   return {
     ...base,
     rpcUrl,
+    rpcUrls,
     distributorAddress: trimmedAddress ? (trimmedAddress as `0x${string}`) : null,
     deployBlock,
     configError: null,

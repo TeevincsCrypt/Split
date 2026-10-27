@@ -5,7 +5,7 @@
  * Receipt page uses indexed distributionId topic filter for fast single-event lookup.
  */
 
-import { createPublicClient, http, parseAbiItem, decodeEventLog } from 'viem'
+import { createPublicClient, fallback, http, parseAbiItem, decodeEventLog } from 'viem'
 import { arcTestnet } from 'viem/chains'
 import { arcMainnet } from '@/config'
 import { ACTIVE_NETWORK } from '@/config/networks'
@@ -37,7 +37,7 @@ const activeChain = ACTIVE_NETWORK.chainId === 5042 ? arcMainnet : arcTestnet
 
 export const publicClient = createPublicClient({
   chain: activeChain,
-  transport: http(rpcUrl),
+  transport: fallback(ACTIVE_NETWORK.rpcUrls.map((url) => http(url, { timeout: 10_000, retryCount: 1 }))),
 })
 
 const distributedEventAbi = parseAbiItem(
