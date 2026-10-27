@@ -4,39 +4,38 @@ import { ACTIVE_NETWORK, MAX_RECIPIENTS } from '@/config/networks'
 
 export default function HowItWorks() {
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 flex flex-col gap-8">
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 flex flex-col gap-6">
       <h1 className="display font-bold text-2xl" style={{ color: 'var(--ink)', letterSpacing: '-0.03em' }}>
         How Split works
       </h1>
 
       <Section title="Non-custodial atomic flow">
         <p>
-          Split never holds your funds. The <code>SplitDistributor</code> contract pulls USDC
-          directly from your wallet to each recipient in a single transaction, using{' '}
-          <code>safeTransferFrom</code>. Either every recipient receives their share, or nobody
-          does — there is no partial success.
+          Split never holds your funds. The <code className="mono text-xs px-1 py-0.5 rounded" style={{ background: 'var(--surface-muted)' }}>SplitDistributor</code> contract pulls USDC
+          directly from your wallet to each recipient in a single transaction using{' '}
+          <code className="mono text-xs px-1 py-0.5 rounded" style={{ background: 'var(--surface-muted)' }}>safeTransferFrom</code>.
+          Either every recipient receives their share, or nobody does.
         </p>
       </Section>
 
       <Section title="Approval model">
         <p>
           Before distributing, you approve the contract to spend exactly the distribution amount —
-          never unlimited. This approval covers one distribution only and is consumed in that
-          transaction.
+          never unlimited. This approval covers one distribution only.
         </p>
       </Section>
 
       <Section title="Rounding policy">
         <p>
           Amounts are computed as{' '}
-          <code>floor(totalAmount × bps / 10,000)</code> for every recipient except the last, who
-          receives the remainder. This guarantees amounts always sum exactly to{' '}
-          <code>totalAmount</code> — no dust is lost.
+          <code className="mono text-xs px-1 py-0.5 rounded" style={{ background: 'var(--surface-muted)' }}>floor(totalAmount × bps / 10,000)</code>{' '}
+          for every recipient except the last, who receives the remainder. Amounts always sum exactly to{' '}
+          <code className="mono text-xs px-1 py-0.5 rounded" style={{ background: 'var(--surface-muted)' }}>totalAmount</code>.
         </p>
       </Section>
 
       <Section title="Limits">
-        <ul className="list-disc list-inside flex flex-col gap-1">
+        <ul className="list-disc list-inside flex flex-col gap-1.5">
           <li>Maximum {MAX_RECIPIENTS} recipients per distribution</li>
           <li>Allocations in basis points — 1 bp = 0.01%, sum must equal 10,000</li>
           <li>Split name: 1–64 bytes (UTF-8)</li>
@@ -54,7 +53,7 @@ export default function HowItWorks() {
             href={`${ACTIVE_NETWORK.explorerBase}/address/${ACTIVE_NETWORK.distributorAddress}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1 mono text-xs mt-2 hover:underline"
+            className="flex items-center gap-1 mono text-xs mt-2 font-semibold hover:underline"
             style={{ color: 'var(--accent)' }}
           >
             {ACTIVE_NETWORK.distributorAddress} <ExternalLink className="size-3" />
@@ -66,9 +65,9 @@ export default function HowItWorks() {
 
       <Section title="History via RPC logs">
         <p>
-          Activity is loaded by scanning <code>Distributed</code> events from the contract's
-          deploy block onwards. On large chains this may be slow or partial if the RPC caps the
-          block range per request. The UI always shows a notice when history is partial.
+          Activity is loaded by scanning <code className="mono text-xs px-1 py-0.5 rounded" style={{ background: 'var(--surface-muted)' }}>Distributed</code> events from
+          the contract's deploy block. On large chains this may be partial if the RPC caps the
+          block range per request — the UI always shows a notice when history is partial.
         </p>
       </Section>
 
@@ -82,24 +81,19 @@ export default function HowItWorks() {
 
       <Section title="Self-host / deploy">
         <p>
-          If you want to run your own instance of SplitDistributor — on Arc Mainnet or a
-          different testnet — you can deploy the compiled contract directly from your connected
-          wallet without pasting a private key anywhere.
+          You can deploy your own instance of SplitDistributor from your connected wallet —
+          no private key required.
         </p>
         <Link
           to="/deploy"
-          className="inline-flex items-center gap-1.5 text-sm font-medium mt-1 hover:underline"
+          className="inline-flex items-center gap-1.5 text-sm font-bold mt-1"
           style={{ color: 'var(--accent)' }}
         >
           Open the Deploy page <ArrowRight className="size-3.5" />
         </Link>
       </Section>
 
-      <Link
-        to="/create"
-        className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-semibold self-start transition-all hover:scale-[1.02]"
-        style={{ background: 'var(--accent)', color: '#0d1b2f' }}
-      >
+      <Link to="/create" className="btn-primary self-start">
         Create a split <ArrowRight className="size-4" />
       </Link>
     </div>
@@ -108,8 +102,8 @@ export default function HowItWorks() {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section>
-      <h2 className="display font-semibold text-base mb-2" style={{ color: 'var(--ink)', letterSpacing: '-0.02em' }}>
+    <section className="card p-5">
+      <h2 className="display font-bold text-base mb-2.5" style={{ color: 'var(--ink)', letterSpacing: '-0.02em' }}>
         {title}
       </h2>
       <div className="text-sm leading-relaxed flex flex-col gap-2" style={{ color: 'var(--muted)' }}>

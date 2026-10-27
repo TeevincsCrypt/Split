@@ -1,6 +1,5 @@
 import { useAccount, useSwitchChain } from 'wagmi'
 import { ACTIVE_NETWORK } from '@/config/networks'
-import { AlertTriangle } from 'lucide-react'
 
 export default function WrongNetworkBanner() {
   const { chainId, isConnected } = useAccount()
@@ -10,17 +9,18 @@ export default function WrongNetworkBanner() {
 
   return (
     <div
-      className="w-full flex items-center justify-center gap-3 px-4 py-2.5 text-sm font-medium"
-      style={{ background: 'rgba(232,109,122,0.15)', borderBottom: '1px solid rgba(232,109,122,0.3)' }}
+      className="w-full flex items-center justify-center gap-3 px-4 py-2 text-xs font-semibold"
+      style={{
+        background: 'var(--danger-bg)',
+        borderBottom: '1px solid var(--danger)',
+        color: 'var(--danger)',
+      }}
     >
-      <AlertTriangle className="size-4 shrink-0" style={{ color: 'var(--danger)' }} />
-      <span style={{ color: 'var(--ink-2)' }}>
-        Wrong network — please switch to {ACTIVE_NETWORK.name}
-      </span>
+      Wrong network — switch to {ACTIVE_NETWORK.name}
       <button
         onClick={() => switchChain({ chainId: ACTIVE_NETWORK.chainId })}
         disabled={isPending}
-        className="px-3 py-1 rounded-lg text-xs font-semibold transition-opacity disabled:opacity-50"
+        className="px-3 py-1 rounded-full text-xs font-bold transition-opacity disabled:opacity-50"
         style={{ background: 'var(--danger)', color: '#fff' }}
       >
         {isPending ? 'Switching…' : 'Switch'}

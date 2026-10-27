@@ -69,15 +69,15 @@ function CheckRow({ label, result }: { label: string; result: boolean | null }) 
       {result === null ? (
         <Loader2 className="size-4 animate-spin" style={{ color: 'var(--subtle)' }} />
       ) : result ? (
-        <CheckCircle className="size-4 text-green-400" />
+        <CheckCircle className="size-4 text-[var(--success)]" />
       ) : (
-        <XCircle className="size-4 text-red-400" />
+        <XCircle className="size-4 text-[var(--danger)]" />
       )}
-      <span style={{ color: result === null ? 'var(--subtle)' : result ? 'var(--ink)' : '#f87171' }}>
+      <span style={{ color: result === null ? 'var(--subtle)' : result ? 'var(--ink)' : 'var(--danger)' }}>
         {label}
       </span>
       {result !== null && (
-        <span className="text-xs font-semibold" style={{ color: result ? '#4ade80' : '#f87171' }}>
+        <span className="text-xs font-semibold" style={{ color: result ? 'var(--success)' : 'var(--danger)' }}>
           {result ? 'PASS' : 'FAIL'}
         </span>
       )}
@@ -90,7 +90,7 @@ function EnvLine({ name, value }: { name: string; value: string }) {
   return (
     <div
       className="flex items-center gap-2 rounded-xl px-3 py-2"
-      style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
+      style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)' }}
     >
       <code className="mono text-xs flex-1 break-all" style={{ color: 'var(--ink)' }}>
         {line}
@@ -304,11 +304,11 @@ export default function Deploy() {
       {IS_MAINNET && (
         <div
           className="flex gap-3 p-4 rounded-2xl border"
-          style={{ background: 'rgba(239,68,68,0.08)', borderColor: '#ef4444' }}
+          style={{ background: 'var(--danger-bg)', borderColor: 'var(--danger)' }}
         >
-          <AlertTriangle className="size-5 shrink-0 text-red-400 mt-0.5" />
+          <AlertTriangle className="size-5 shrink-0 text-[var(--danger)] mt-0.5" />
           <div className="flex flex-col gap-1">
-            <p className="text-sm font-semibold text-red-400">This uses real USDC for gas and cannot be undone.</p>
+            <p className="text-sm font-semibold text-[var(--danger)]">This uses real USDC for gas and cannot be undone.</p>
             <p className="text-xs" style={{ color: 'var(--muted)' }}>
               You are deploying to Arc Mainnet with real funds. Verify all parameters before signing.
               Ensure you have obtained an independent audit. Once submitted, the transaction is irreversible.
@@ -321,7 +321,7 @@ export default function Deploy() {
       {!isConnected && (
         <div
           className="flex flex-col items-center gap-3 p-6 rounded-2xl text-center"
-          style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
+          style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)' }}
         >
           <p className="text-sm" style={{ color: 'var(--muted)' }}>
             Connect your wallet to continue.
@@ -333,18 +333,18 @@ export default function Deploy() {
       {isConnected && isWrongChain && (
         <div
           className="flex flex-col gap-3 p-4 rounded-2xl border"
-          style={{ background: 'rgba(250,204,21,0.06)', borderColor: '#ca8a04' }}
+          style={{ background: 'var(--warning-bg)', borderColor: 'var(--warning)' }}
         >
           <div className="flex items-center gap-2">
-            <AlertTriangle className="size-4 text-yellow-400 shrink-0" />
-            <p className="text-sm font-medium text-yellow-400">
+            <AlertTriangle className="size-4 text-[var(--warning)] shrink-0" />
+            <p className="text-sm font-medium text-[var(--warning)]">
               Switch to {ACTIVE_NETWORK.name} to deploy
             </p>
           </div>
           <button
             onClick={() => switchChain({ chainId: CHAIN_ID })}
             className="self-start text-xs font-semibold px-3 py-1.5 rounded-xl transition-opacity hover:opacity-80"
-            style={{ background: 'var(--accent)', color: '#0d1b2f' }}
+            style={{ background: 'var(--accent)', color: '#fff' }}
           >
             Switch to {ACTIVE_NETWORK.name}
           </button>
@@ -359,7 +359,7 @@ export default function Deploy() {
           </h2>
           <div
             className="rounded-2xl divide-y text-sm"
-            style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
+            style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)' }}
           >
             <Row label="Network" value={`${ACTIVE_NETWORK.name} (chain ID ${CHAIN_ID})`} />
             <Row label="Deployer" value={address ?? '—'} mono />
@@ -401,7 +401,7 @@ export default function Deploy() {
               type="checkbox"
               checked={confirmed}
               onChange={(e) => setConfirmed(e.target.checked)}
-              className="mt-0.5 accent-teal-400"
+              className="mt-0.5 accent-[var(--accent)]"
             />
             <span className="text-sm" style={{ color: 'var(--muted)' }}>
               I have verified the bytecode keccak256, constructor arg, and network above.
@@ -421,7 +421,7 @@ export default function Deploy() {
                 placeholder="DEPLOY"
                 className="mono text-sm px-3 py-2 rounded-xl w-40 outline-none"
                 style={{
-                  background: 'var(--surface-2)',
+                  background: 'var(--surface-muted)',
                   border: '1px solid var(--border)',
                   color: 'var(--ink)',
                 }}
@@ -433,7 +433,7 @@ export default function Deploy() {
             disabled={!canDeploy}
             onClick={() => void handleDeploy()}
             className="self-start flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold transition-all hover:scale-[1.02] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
-            style={{ background: 'var(--accent)', color: '#0d1b2f' }}
+            style={{ background: 'var(--accent)', color: '#fff' }}
           >
             {isEstimating ? (
               <>
@@ -452,11 +452,11 @@ export default function Deploy() {
       {state === 'error' && errorMsg && (
         <div
           className="flex gap-3 p-4 rounded-2xl border"
-          style={{ background: 'rgba(239,68,68,0.08)', borderColor: '#ef4444' }}
+          style={{ background: 'var(--danger-bg)', borderColor: 'var(--danger)' }}
         >
-          <XCircle className="size-5 shrink-0 text-red-400 mt-0.5" />
+          <XCircle className="size-5 shrink-0 text-[var(--danger)] mt-0.5" />
           <div className="flex flex-col gap-1">
-            <p className="text-sm font-semibold text-red-400">Deployment failed</p>
+            <p className="text-sm font-semibold text-[var(--danger)]">Deployment failed</p>
             <p className="text-xs" style={{ color: 'var(--muted)' }}>{errorMsg}</p>
           </div>
         </div>
@@ -466,7 +466,7 @@ export default function Deploy() {
       {(state === 'deploying' || state === 'confirming' || state === 'verifying') && (
         <div
           className="flex flex-col gap-3 p-5 rounded-2xl"
-          style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
+          style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)' }}
         >
           <div className="flex items-center gap-2">
             <Loader2 className="size-4 animate-spin" style={{ color: 'var(--accent)' }} />
@@ -494,11 +494,11 @@ export default function Deploy() {
       {state === 'unconfirmed' && txHash && (
         <div
           className="flex flex-col gap-3 p-5 rounded-2xl border"
-          style={{ background: 'rgba(250,204,21,0.06)', borderColor: '#ca8a04' }}
+          style={{ background: 'var(--warning-bg)', borderColor: 'var(--warning)' }}
         >
           <div className="flex items-center gap-2">
-            <AlertTriangle className="size-4 text-yellow-400 shrink-0" />
-            <p className="text-sm font-semibold text-yellow-300">Submitted — not yet confirmed</p>
+            <AlertTriangle className="size-4 text-[var(--warning)] shrink-0" />
+            <p className="text-sm font-semibold text-[var(--warning)]">Submitted — not yet confirmed</p>
           </div>
           <p className="text-xs" style={{ color: 'var(--muted)' }}>
             The transaction was submitted but a receipt was not received within 120 seconds. It may still confirm.
@@ -515,7 +515,7 @@ export default function Deploy() {
           <button
             onClick={() => void handleCheckAgain()}
             className="self-start text-xs font-semibold px-3 py-1.5 rounded-xl transition-opacity hover:opacity-80"
-            style={{ background: 'var(--accent)', color: '#0d1b2f' }}
+            style={{ background: 'var(--accent)', color: '#fff' }}
           >
             Check again
           </button>
@@ -527,11 +527,11 @@ export default function Deploy() {
         <div className="flex flex-col gap-5">
           <div
             className="flex flex-col gap-3 p-5 rounded-2xl"
-            style={{ background: 'rgba(74,222,128,0.06)', border: '1px solid #4ade80' }}
+            style={{ background: 'var(--success-bg)', border: '1px solid var(--success)' }}
           >
             <div className="flex items-center gap-2">
-              <CheckCircle className="size-5 text-green-400" />
-              <p className="text-sm font-semibold text-green-400">Deployment confirmed</p>
+              <CheckCircle className="size-5 text-[var(--success)]" />
+              <p className="text-sm font-semibold text-[var(--success)]">Deployment confirmed</p>
             </div>
             <div className="flex flex-col gap-2 text-xs" style={{ color: 'var(--muted)' }}>
               <div className="flex items-center gap-1 flex-wrap">
@@ -567,7 +567,7 @@ export default function Deploy() {
             <h2 className="text-sm font-semibold" style={{ color: 'var(--ink)' }}>Onchain verification</h2>
             <div
               className="flex flex-col gap-2 p-4 rounded-2xl"
-              style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
+              style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)' }}
             >
               <CheckRow label="Contract code is non-empty (eth_getCode)" result={verification.codeNonEmpty} />
               <CheckRow label={`usdc() == ${USDC_ADDRESS}`} result={verification.usdcMatch} />

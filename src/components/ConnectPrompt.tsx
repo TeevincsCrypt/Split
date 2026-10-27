@@ -1,30 +1,29 @@
 import { ConnectKitButton } from 'connectkit'
-import { Wallet, ArrowLeft } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
+import { SplitMark } from './Layout'
 
 interface Props {
   message?: string
-  /** When set, shows a back button alongside the connect button */
   onBack?: () => void
 }
 
 export default function ConnectPrompt({ message = 'Connect your wallet to continue.', onBack }: Props) {
   return (
-    <div className="flex flex-col items-center justify-center gap-4 py-16 px-4 text-center">
+    <div className="flex flex-col items-center justify-center gap-5 py-16 px-4 text-center">
       <div
-        className="size-14 rounded-2xl flex items-center justify-center"
-        style={{ background: 'var(--accent-dim)' }}
+        className="size-16 rounded-full flex items-center justify-center"
+        style={{ background: 'var(--accent-dim)', border: '1px solid var(--accent-mid)' }}
       >
-        <Wallet className="size-7" style={{ color: 'var(--accent)' }} />
+        <SplitMark size={28} />
       </div>
-      <p className="text-sm max-w-xs" style={{ color: 'var(--muted)' }}>
+      <p className="text-sm max-w-xs font-medium" style={{ color: 'var(--muted)' }}>
         {message}
       </p>
       <div className="flex items-center gap-3">
         {onBack && (
           <button
             onClick={onBack}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-colors"
-            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--ink-2)' }}
+            className="btn-ghost flex items-center gap-1.5 text-sm"
           >
             <ArrowLeft className="size-4" /> Back
           </button>

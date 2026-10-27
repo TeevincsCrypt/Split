@@ -25,6 +25,8 @@ is paid or nothing moves. Every payout is a `Distributed` event that anyone can 
   5. `05-deploy-page.md`: the `/deploy` page, so the owner deploys to mainnet from their own wallet.
   6. `06-polish.md`: mainnet RPC override, honest RPC-error states, mobile navigation, editor usable before connecting.
   7. `07-editor.md`: an exact preview for invalid allocations, plus live field errors.
+  8. `08-redesign.md`: full visual redesign (light bento layout, wine brand colour) and the new logo.
+- Outside Arc Studio: Arc Studio ran out of daily budget at the end of turn 8, so the logo SVG was traced by hand from `design/split-logo-source.jpg`, and the wallet-button and Arc Studio badge colours were set in `src/main.tsx`. No contract or transaction code was written outside Arc Studio.
 - Arc Studio results: 40/40 Foundry tests (re-run independently: 40 passed), Slither 0 findings, 36/36 vitest tests.
 
 ## Contracts

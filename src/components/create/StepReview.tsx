@@ -25,7 +25,6 @@ export default function StepReview({ draft, onBack, onNext }: Props) {
   const amounts = total ? computeAmounts(total, bpsValues) : []
   const recipients = rows.map((r) => getAddress(r.address))
 
-  // Estimate gas on mount
   useEffect(() => {
     if (!publicClient || !total || !ACTIVE_NETWORK.distributorAddress) return
     let active = true
@@ -47,16 +46,32 @@ export default function StepReview({ draft, onBack, onNext }: Props) {
   }, [])
 
   return (
-    <div className="flex flex-col gap-5">
-      <h2 className="display font-bold text-xl" style={{ color: 'var(--ink)', letterSpacing: '-0.02em' }}>
+    <div className="flex flex-col gap-4">
+      <h2 className="display font-bold text-xl" style={{ color: 'var(--ink)', letterSpacing: '-0.03em' }}>
         Review distribution
       </h2>
 
-      {/* Header info */}
-      <div className="rounded-2xl p-4 flex flex-col gap-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-        <Row label="Split name" value={name} />
+      {/* Big total card */}
+      <div
+        className="card p-5 flex flex-col items-center gap-1 text-center"
+        style={{ background: 'var(--accent-dim)', border: '1px solid var(--accent-mid)' }}
+      >
+        <span className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--accent)' }}>Total</span>
+        <div className="flex items-baseline gap-1 mt-1">
+          <span className="text-sm font-bold" style={{ color: 'var(--accent)' }}>$</span>
+          <span className="display font-extrabold text-4xl nums" style={{ color: 'var(--accent)', letterSpacing: '-0.04em' }}>
+            {formatUsdcAmount(total ?? 0n, 2)}
+          </span>
+          <span className="text-base font-bold" style={{ color: 'var(--accent)' }}>USDC</span>
+        </div>
+        <span className="text-xs font-semibold mt-1" style={{ color: 'var(--accent)' }}>
+          {rows.length} recipient{rows.length !== 1 ? 's' : ''} · {name}
+        </span>
+      </div>
+
+      {/* Details card */}
+      <div className="card p-4 flex flex-col gap-2">
         <Row label="Network" value={ACTIVE_NETWORK.name} />
-        <Row label="Total" value={`${formatUsdcAmount(total ?? 0n, 2)} USDC`} accent />
         <Row label="Recipients" value={String(rows.length)} />
         <Row
           label="Gas estimate"
@@ -69,24 +84,32 @@ export default function StepReview({ draft, onBack, onNext }: Props) {
         {rows.map((row, i) => (
           <div
             key={i}
-            className="flex items-center justify-between p-3 rounded-xl"
-            style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+            className="card px-4 py-3 flex items-center justify-between gap-3"
           >
-            <div className="min-w-0">
-              {row.label && (
-                <div className="text-sm font-medium truncate" style={{ color: 'var(--ink-2)' }}>
-                  {row.label}
+            <div className="flex items-center gap-3 min-w-0">
+              <span
+                className="size-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                style={{ background: 'var(--accent-dim)', color: 'var(--accent)' }}
+              >
+                {i + 1}
+              </span>
+              <div className="min-w-0">
+                {row.label && (
+                  <div className="text-sm font-semibold truncate" style={{ color: 'var(--ink-2)' }}>{row.label}</div>
+                )}
+                <div className="text-xs mono truncate" style={{ color: 'var(--subtle)' }}>
+                  {formatAddress(row.address)}
                 </div>
-              )}
-              <div className="text-xs mono truncate" style={{ color: 'var(--subtle)' }}>
-                {formatAddress(row.address)}
               </div>
             </div>
-            <div className="text-right shrink-0 ml-3">
-              <div className="text-sm font-semibold tabular-nums" style={{ color: 'var(--accent)' }}>
+            <div className="text-right shrink-0">
+              <div className="text-sm font-bold nums" style={{ color: 'var(--accent)' }}>
                 {formatUsdcAmount(amounts[i] ?? 0n, 2)} USDC
               </div>
-              <div className="text-xs tabular-nums" style={{ color: 'var(--subtle)' }}>
+              <div
+                className="text-xs nums px-2 py-0.5 rounded-full mt-0.5 inline-block"
+                style={{ background: 'var(--surface-muted)', color: 'var(--muted)' }}
+              >
                 {(row.bps / 100).toFixed(2)}%
               </div>
             </div>
@@ -97,12 +120,12 @@ export default function StepReview({ draft, onBack, onNext }: Props) {
       {/* Irreversibility notice */}
       <div
         className="rounded-2xl p-4 flex items-start gap-3"
-        style={{ background: 'rgba(245,200,66,0.1)', border: '1px solid rgba(245,200,66,0.3)' }}
+        style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning)' }}
       >
         <AlertTriangle className="size-4 mt-0.5 shrink-0" style={{ color: 'var(--warning)' }} />
-        <p className="text-sm" style={{ color: 'var(--ink-2)' }}>
+        <p className="text-sm font-medium" style={{ color: 'var(--ink-2)' }}>
           This transaction is irreversible. Once signed, USDC will be sent directly to each
-          recipient. Verify all addresses carefully before proceeding.
+          recipient. Verify all addresses carefully.
         </p>
       </div>
 
@@ -112,41 +135,35 @@ export default function StepReview({ draft, onBack, onNext }: Props) {
           type="checkbox"
           checked={confirmed}
           onChange={(e) => setConfirmed(e.target.checked)}
-          className="size-4 rounded accent-teal-400"
+          className="size-4 rounded"
+          style={{ accentColor: 'var(--accent)' }}
         />
-        <span className="text-sm" style={{ color: 'var(--muted)' }}>
-          I have verified all recipient addresses and understand this transaction is irreversible.
+        <span className="text-sm font-medium" style={{ color: 'var(--muted)' }}>
+          I have verified all recipient addresses and understand this is irreversible.
         </span>
       </label>
 
       <div className="flex gap-3">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-2 px-4 py-3 rounded-2xl text-sm font-semibold"
-          style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--muted)' }}
-        >
+        <button onClick={onBack} className="btn-ghost flex items-center gap-2">
           <ArrowLeft className="size-4" /> Back
         </button>
         <button
           onClick={onNext}
           disabled={!confirmed}
-          className="flex-1 py-3 rounded-2xl text-sm font-semibold transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed"
-          style={{ background: 'var(--accent)', color: '#0d1b2f' }}
+          className="btn-primary flex-1 justify-center disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          Continue to approve
+          Continue to approve →
         </button>
       </div>
     </div>
   )
 }
 
-function Row({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between text-sm">
-      <span style={{ color: 'var(--subtle)' }}>{label}</span>
-      <span className="font-semibold tabular-nums" style={{ color: accent ? 'var(--accent)' : 'var(--ink-2)' }}>
-        {value}
-      </span>
+      <span style={{ color: 'var(--muted)' }}>{label}</span>
+      <span className="font-semibold" style={{ color: 'var(--ink-2)' }}>{value}</span>
     </div>
   )
 }

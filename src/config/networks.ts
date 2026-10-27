@@ -9,6 +9,8 @@ import { requireChain, getUsdc } from '@/onchain-facts'
 export interface NetworkConfig {
   chainId: number
   name: string
+  /** Short display name for compact UI elements */
+  shortName?: string
   /** Effective RPC URL: VITE_SPLIT_RPC_URL override → proxy → onchain-facts default */
   rpcUrl: string
   explorerBase: string
@@ -32,6 +34,7 @@ function buildNetworkConfig(chainId: number): Omit<NetworkConfig, 'distributorAd
   return {
     chainId: chain.chainId,
     name: chain.name,
+    shortName: chain.isTestnet ? 'Arc Testnet' : 'Arc',
     rpcUrl: chain.rpcUrls[0],
     explorerBase: chain.explorerBase,
     usdcAddress: usdc.address as `0x${string}`,

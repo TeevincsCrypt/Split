@@ -62,37 +62,38 @@ export default function CreateSplit() {
   }
 
   return (
-    <div className="max-w-xl mx-auto px-4 py-8 flex flex-col gap-6">
-      {/* Step indicator */}
-      <div className="flex items-center gap-0">
+    <div className="max-w-xl mx-auto px-4 py-6 flex flex-col gap-5">
+      {/* Step indicator — pill pagination */}
+      <div className="flex items-center justify-center gap-2">
         {STEP_ORDER.map((s, i) => {
           const active = s === step
           const done = i < stepIdx
           return (
-            <div key={s} className="flex items-center gap-0 flex-1">
-              <div className="flex flex-col items-center gap-1">
-                <div
-                  className="size-7 rounded-full flex items-center justify-center text-xs font-bold transition-all"
-                  style={{
-                    background: done ? 'var(--success)' : active ? 'var(--accent)' : 'var(--surface)',
-                    border: `1.5px solid ${done ? 'var(--success)' : active ? 'var(--accent)' : 'var(--border)'}`,
-                    color: active || done ? '#0d1b2f' : 'var(--subtle)',
-                  }}
-                >
-                  {done ? '✓' : i + 1}
-                </div>
-                <span
-                  className="text-xs font-medium"
-                  style={{ color: active ? 'var(--ink)' : 'var(--subtle)' }}
-                >
-                  {STEP_LABELS[s]}
-                </span>
+            <div key={s} className="flex items-center gap-2">
+              <div
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all"
+                style={
+                  active
+                    ? { background: 'var(--accent)', color: '#fff' }
+                    : done
+                    ? { background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success)' }
+                    : { background: 'var(--surface-muted)', color: 'var(--subtle)', border: '1px solid var(--border)' }
+                }
+              >
+                {done ? (
+                  <span>✓</span>
+                ) : (
+                  <span
+                    className="size-3.5 rounded-full flex items-center justify-center text-[9px] font-bold"
+                    style={{ background: active ? 'rgba(255,255,255,0.25)' : 'var(--border)' }}
+                  >
+                    {i + 1}
+                  </span>
+                )}
+                <span className="hidden sm:inline">{STEP_LABELS[s]}</span>
               </div>
               {i < STEP_ORDER.length - 1 && (
-                <div
-                  className="flex-1 h-px mx-1 mb-4"
-                  style={{ background: done ? 'var(--success)' : 'var(--border)' }}
-                />
+                <div className="w-3 h-px" style={{ background: 'var(--border)' }} />
               )}
             </div>
           )

@@ -30,8 +30,8 @@
       "pulledAt": "2026-10-26T23:55:44.096Z"
     },
     "index.html": {
-      "hash": "ca6fd33f80008d7b9e36ade911d3bd9773533545c02eec38271a13c81201daac",
-      "pulledAt": "2026-10-27T00:05:54.114Z"
+      "hash": "d48b1a0af0e0e3068235977e3f03d1d60e8231c779832a22966ba721d63e0877",
+      "pulledAt": "2026-10-27T07:49:55.389Z"
     },
     "package.json": {
       "hash": "778d9213c7cc62af634ba0d4adf43aeb334d1eaad5f5182e1b4926097df5060d",
@@ -98,8 +98,8 @@
       "pulledAt": "2026-10-26T23:55:44.102Z"
     },
     "src/index.css": {
-      "hash": "cc8896005ef9e9a5caab6013e65243d8a3b3d28fc1791427a7a9f3ff156797eb",
-      "pulledAt": "2026-10-27T00:05:54.118Z"
+      "hash": "18b01892dd8c38315155847894b626a9f2ed0de48f0f5c135c6e61891b275ee6",
+      "pulledAt": "2026-10-27T07:49:55.395Z"
     },
     "src/main.tsx": {
       "hash": "63ac9cfc3d1efb9f34a94dd0cf2eead2aed323663ba2c81c529f3d8e2bcb235d",
@@ -658,24 +658,24 @@
       "pulledAt": "2026-10-27T00:05:54.122Z"
     },
     "src/components/ConnectPrompt.tsx": {
-      "hash": "68a25fc7b3b4e56ca54e7c866de9f1a793e17ad37dfbbff1df0a4861ae95327b",
-      "pulledAt": "2026-10-27T00:36:27.979Z"
+      "hash": "e57e3eb6f2068e462dc1d4295810c86cdbb714af7cd9a3d7f1ae2bdc62511473",
+      "pulledAt": "2026-10-27T07:49:55.402Z"
     },
     "src/components/ContractNotConfigured.tsx": {
-      "hash": "8b9aa5a61994259ec28a2956ced5604d2043ff02b890a825231d1a4e12c12419",
-      "pulledAt": "2026-10-27T00:12:33.866Z"
+      "hash": "a8d36a81190ac7f656d1b48138e9d878fa103e905afff7e4df0f9b35e2bc7eb7",
+      "pulledAt": "2026-10-27T07:49:55.403Z"
     },
     "src/components/Layout.tsx": {
-      "hash": "9288cadba7afc8bb6e0ca294092fc86f8d06424e23f0637fcd71e768de59452e",
-      "pulledAt": "2026-10-27T00:36:27.979Z"
+      "hash": "70d678175b772f64f505e927a7041935977b266fc6e49e8c287c14c50cba3590",
+      "pulledAt": "2026-10-27T07:49:55.404Z"
     },
     "src/components/WrongNetworkBanner.tsx": {
-      "hash": "7b2bbbbfdfc2e11a07ee7a1a45c4c9a3f1a55def0a960c7132ad00901b74d8fa",
-      "pulledAt": "2026-10-27T00:05:54.124Z"
+      "hash": "adf0cc7ef9e64ce98959306f485f0ab027e7afef952060c52ec517e6a0121bd5",
+      "pulledAt": "2026-10-27T07:49:55.405Z"
     },
     "src/config/networks.ts": {
-      "hash": "4c17e925c71a885988dd18fbf8d968fda8353d58e554da2cc534c7036506e5f1",
-      "pulledAt": "2026-10-27T00:36:27.980Z"
+      "hash": "242e1f1e88b97078786bef3271ad78a67a4ba7dbbfe06221bd4c56de43eca918",
+      "pulledAt": "2026-10-27T07:49:55.406Z"
     },
     "src/hooks/useDistributionHistory.ts": {
       "hash": "22262480654c72f03a4e17597b3828508bbc26f9575d64f0e758934543b6226e",
@@ -706,44 +706,44 @@
       "pulledAt": "2026-10-27T00:05:54.128Z"
     },
     "src/pages/Activity.tsx": {
-      "hash": "09345be80d8d146181d6374f9fee6b4e9a0d4e8aa3a13a24904ac419d25a7798",
-      "pulledAt": "2026-10-27T00:36:27.983Z"
+      "hash": "436d0c640ce52f4fde6dc031ecc5c0883f6e53795c2ee1e107ea1de1d903c7f6",
+      "pulledAt": "2026-10-27T07:49:55.408Z"
     },
     "src/pages/CreateSplit.tsx": {
-      "hash": "decacc62999ce14ca62ac62d74b872868384c59663510b9030a0d5cf2e5cd55f",
-      "pulledAt": "2026-10-27T00:40:38.249Z"
+      "hash": "5ebfcd485f2e672cbd027fdc839ee02deb56fb223d673787eb2938d9c96b06ae",
+      "pulledAt": "2026-10-27T07:49:55.409Z"
     },
     "src/pages/Dashboard.tsx": {
-      "hash": "ffc18beb58b4aa3d9a4c981fac0177addfeb92d8af1a4533b377ede52f1d39ed",
-      "pulledAt": "2026-10-27T00:36:27.984Z"
+      "hash": "2975cae2a6c17bc598d2da4ca9138b2388c8529aad164398eae394285c1d4fcb",
+      "pulledAt": "2026-10-27T07:49:55.409Z"
     },
     "src/pages/HowItWorks.tsx": {
-      "hash": "877f4e48535ab89a8225fcc93bba688550af6b23f309d857c691ebfd597461e5",
-      "pulledAt": "2026-10-27T00:25:36.933Z"
+      "hash": "0c21426f89a0031f6e228f15666b7028edb209ae9244c2c39127424e14c36a34",
+      "pulledAt": "2026-10-27T07:49:55.412Z"
     },
     "src/pages/Landing.tsx": {
-      "hash": "c15c212e600b409e60f8c3f5a96d7512a2851b37b6f1daa892ccd9113b7531c8",
-      "pulledAt": "2026-10-27T00:36:27.984Z"
+      "hash": "e7e441bc64cdefe86720065f488d38017bb435b9fe9a6c45922c1562ee7a66f2",
+      "pulledAt": "2026-10-27T07:49:55.414Z"
     },
     "src/pages/Receipt.tsx": {
-      "hash": "5242fe2041ac5e89dcff7a5dd135f2b7803fcd1f1274162ab6e5b3d6d1784f11",
-      "pulledAt": "2026-10-27T00:36:27.985Z"
+      "hash": "1a067c0c9df09d8dd4b502acedb792cdc63811fd5e47178835bc9d900edb71ec",
+      "pulledAt": "2026-10-27T07:49:55.414Z"
     },
     "src/components/create/StepApprove.tsx": {
-      "hash": "3f50a34c98065bc3b1fb5c1faeb5243b39ea8ed10262027a7447962f77940b41",
-      "pulledAt": "2026-10-27T00:12:33.889Z"
+      "hash": "9b05a81950fd8ca6abe6747c91e96d964b03af246c22369e2809ea87f5488dbc",
+      "pulledAt": "2026-10-27T07:49:55.609Z"
     },
     "src/components/create/StepDistribute.tsx": {
-      "hash": "9a93c16ec40291669072ab9e43847737f60ce7a31478004c5d31822b39bbbb91",
-      "pulledAt": "2026-10-27T00:12:33.890Z"
+      "hash": "af2f091a6a252242a42a77bc9f2775ce501c9883d2d5ed596e00e475bed21caa",
+      "pulledAt": "2026-10-27T07:49:55.610Z"
     },
     "src/components/create/StepEditor.tsx": {
-      "hash": "83c10a2a60d67f2e7a072d2acdb2ef6576e8e6c437edad93aea9c20a8c9da8a0",
-      "pulledAt": "2026-10-27T00:40:38.271Z"
+      "hash": "e1f64bfb82e27dcb6ec180207f46e39686f15a929998b70b63dffe1fb76dd859",
+      "pulledAt": "2026-10-27T07:49:55.611Z"
     },
     "src/components/create/StepReview.tsx": {
-      "hash": "d9bc46a13bf84d7fcd7a34b3a677b0bad344511f02f119ff8fae5f3b2c81ccd0",
-      "pulledAt": "2026-10-27T00:12:33.890Z"
+      "hash": "817c0639830b009f6655d61d7f864e53d557aa058b60714c5ad7ab60e7be8d0a",
+      "pulledAt": "2026-10-27T07:49:55.611Z"
     },
     ".env.example": {
       "hash": "2ae9dedd3fdb9a606f9f5f5839bab5c801de95adf68152868edc599547f2e2bd",
@@ -762,12 +762,20 @@
       "pulledAt": "2026-10-27T00:25:36.931Z"
     },
     "src/pages/Deploy.tsx": {
-      "hash": "cdbd90769dd517387296cb50d66ea1a968d5cb75378b0978bf56e02adb2bf0f1",
-      "pulledAt": "2026-10-27T00:25:36.933Z"
+      "hash": "35c3e1f3f952dedb02dc0205fc95a5808fc5c3a397fa44b95da7d9ee5c480d4b",
+      "pulledAt": "2026-10-27T07:49:55.411Z"
     },
     "src/components/RpcErrorBanner.tsx": {
-      "hash": "e6394eb29dfd06cfa5224e7794da342af6e3b97047cdae4de81af0b757983568",
-      "pulledAt": "2026-10-27T00:36:27.980Z"
+      "hash": "184ee88fe4bfa85e6b44a5cbb37165befef16fcff62dcad9803edd288208cd79",
+      "pulledAt": "2026-10-27T07:49:55.404Z"
+    },
+    "public/brand/split-logo-source.jpg": {
+      "hash": "9ce0a0c1accf3304d4122404891c4808cca9562a374ab4dae976c299e2458ab2",
+      "pulledAt": "2026-10-27T07:49:55.399Z"
+    },
+    "public/brand/split-mark.svg": {
+      "hash": "94aaba1974663c1cf4219fb1174ba00543f01c2f4283c9a7bd34b5f0f8d772eb",
+      "pulledAt": "2026-10-27T07:49:55.400Z"
     }
   }
 }

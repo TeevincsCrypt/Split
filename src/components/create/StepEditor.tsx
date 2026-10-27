@@ -184,8 +184,8 @@ export default function StepEditor({ draft, touched, onTouch, onChange, onNext }
     : null
 
   return (
-    <div className="flex flex-col gap-5">
-      <h2 className="display font-bold text-xl" style={{ color: 'var(--ink)', letterSpacing: '-0.02em' }}>
+    <div className="flex flex-col gap-4">
+      <h2 className="display font-bold text-xl" style={{ color: 'var(--ink)', letterSpacing: '-0.03em' }}>
         Create a split
       </h2>
 
@@ -199,7 +199,7 @@ export default function StepEditor({ draft, touched, onTouch, onChange, onNext }
           value={draft.name}
           onChange={(e) => onChange({ ...draft, name: e.target.value })}
           onBlur={() => onTouch({ name: true })}
-          className="w-full bg-transparent text-sm outline-none placeholder:opacity-40"
+          className="w-full bg-transparent text-sm outline-none placeholder:opacity-40 font-medium"
           style={{ color: 'var(--ink)' }}
         />
       </Field>
@@ -219,6 +219,7 @@ export default function StepEditor({ draft, touched, onTouch, onChange, onNext }
       {/* Total amount */}
       <Field label="Total USDC amount" error={showAmtErr ? validation.amountError : null}>
         <div className="flex items-center gap-2">
+          <span className="text-base font-bold" style={{ color: 'var(--muted)' }}>$</span>
           <input
             ref={amountRef}
             inputMode="decimal"
@@ -230,33 +231,36 @@ export default function StepEditor({ draft, touched, onTouch, onChange, onNext }
               onChange({ ...draft, totalAmountRaw: v, totalAmountParsed: parseUsdcInput(v) })
             }}
             onBlur={() => onTouch({ amount: true })}
-            className="flex-1 bg-transparent text-sm outline-none tabular-nums placeholder:opacity-40"
+            className="flex-1 bg-transparent text-lg outline-none nums font-bold placeholder:opacity-30"
             style={{ color: 'var(--ink)' }}
           />
-          <span className="text-xs font-medium" style={{ color: 'var(--subtle)' }}>USDC</span>
+          <span
+            className="px-2 py-0.5 rounded-full text-xs font-bold"
+            style={{ background: 'var(--surface-muted)', color: 'var(--muted)', border: '1px solid var(--border)' }}
+          >
+            USDC
+          </span>
         </div>
       </Field>
 
       {/* Recipients */}
       <div>
-        <div className="flex items-center justify-between mb-2">
-          <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--subtle)' }}>
+        <div className="flex items-center justify-between mb-2.5">
+          <label className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--subtle)' }}>
             Recipients ({draft.rows.length}/{MAX_RECIPIENTS})
           </label>
-          <div className="flex gap-2">
+          <div className="flex gap-1.5">
             <button
               type="button"
               onClick={fillExample}
-              className="text-xs px-2 py-1 rounded-lg"
-              style={{ background: 'var(--surface-muted)', color: 'var(--muted)' }}
+              className="chip"
             >
-              Example: 40/25/20/15
+              40/25/20/15
             </button>
             <button
               type="button"
               onClick={splitEvenly}
-              className="text-xs px-2 py-1 rounded-lg flex items-center gap-1"
-              style={{ background: 'var(--surface-muted)', color: 'var(--muted)' }}
+              className="chip flex items-center gap-1"
             >
               <Shuffle className="size-3" /> Even
             </button>
@@ -267,7 +271,7 @@ export default function StepEditor({ draft, touched, onTouch, onChange, onNext }
           <ErrorMsg msg={validation.recipientsError} />
         )}
 
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2.5">
           {draft.rows.map((row, i) => {
             const previewAmt = previewList?.[i]
             const rowErr = rowAddrTouched(i) ? validation.rowErrors[i] : null
@@ -276,30 +280,38 @@ export default function StepEditor({ draft, touched, onTouch, onChange, onNext }
             return (
               <div
                 key={i}
-                className="rounded-2xl p-3 flex flex-col gap-2"
+                className="rounded-2xl p-4 flex flex-col gap-3"
                 style={{
-                  background: 'var(--surface)',
-                  border: `1px solid ${hasErr ? 'var(--danger)' : 'var(--border)'}`,
+                  background: 'var(--card)',
+                  border: `1.5px solid ${hasErr ? 'var(--danger)' : 'var(--border)'}`,
+                  boxShadow: 'var(--shadow-card)',
                 }}
               >
+                {/* Row header: number, label, delete */}
                 <div className="flex items-center gap-2">
-                  <span className="text-xs tabular-nums w-5 shrink-0" style={{ color: 'var(--subtle)' }}>
-                    {i + 1}.
+                  <span
+                    className="size-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                    style={{ background: 'var(--accent-dim)', color: 'var(--accent)' }}
+                  >
+                    {i + 1}
                   </span>
                   <input
                     type="text"
                     placeholder="Label (optional)"
                     value={row.label}
                     onChange={(e) => updateRow(i, { label: e.target.value })}
-                    className="flex-1 bg-transparent text-xs outline-none placeholder:opacity-40"
-                    style={{ color: 'var(--muted)' }}
+                    className="flex-1 bg-transparent text-sm outline-none placeholder:opacity-40 font-medium"
+                    style={{ color: 'var(--ink-2)' }}
                   />
                   {draft.rows.length > 1 && (
-                    <button type="button" onClick={() => removeRow(i)} className="opacity-40 hover:opacity-70 transition-opacity">
-                      <Trash2 className="size-3.5" style={{ color: 'var(--danger)' }} />
+                    <button type="button" onClick={() => removeRow(i)}
+                      className="icon-btn opacity-50 hover:opacity-100 transition-opacity"
+                      style={{ width: 28, height: 28, background: 'var(--surface-muted)', boxShadow: 'none' }}>
+                      <Trash2 className="size-3" style={{ color: 'var(--danger)' }} />
                     </button>
                   )}
                 </div>
+                {/* Address */}
                 <input
                   ref={(el) => { addressRefs.current[i] = el }}
                   type="text"
@@ -307,25 +319,38 @@ export default function StepEditor({ draft, touched, onTouch, onChange, onNext }
                   value={row.address}
                   onChange={(e) => updateRow(i, { address: e.target.value.trim() })}
                   onBlur={() => touchRowAddress(i)}
-                  className="w-full bg-transparent text-xs mono outline-none placeholder:opacity-40"
-                  style={{ color: 'var(--ink-2)' }}
+                  className="w-full bg-transparent text-xs mono outline-none placeholder:opacity-40 px-3 py-2 rounded-xl"
+                  style={{
+                    color: 'var(--ink-2)',
+                    background: 'var(--surface-muted)',
+                    border: `1px solid ${rowErr ? 'var(--danger)' : 'var(--border)'}`,
+                  }}
                 />
+                {/* Percent pill + amount */}
                 <div className="flex items-center gap-2">
-                  <input
-                    ref={(el) => { bpsRefs.current[i] = el }}
-                    inputMode="decimal"
-                    type="text"
-                    placeholder="0.00"
-                    value={row.bps > 0 ? bpsToPercent(row.bps) : ''}
-                    onChange={(e) => handlePctChange(i, e.target.value)}
-                    onBlur={() => touchRowBps(i)}
-                    className="w-20 bg-transparent text-sm outline-none tabular-nums placeholder:opacity-40"
-                    style={{ color: 'var(--ink)' }}
-                  />
-                  <span className="text-xs" style={{ color: 'var(--subtle)' }}>%</span>
+                  <div
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-full"
+                    style={{
+                      background: row.bps > 0 ? 'var(--accent-dim)' : 'var(--surface-muted)',
+                      border: `1px solid ${row.bps > 0 ? 'var(--accent-mid)' : 'var(--border)'}`,
+                    }}
+                  >
+                    <input
+                      ref={(el) => { bpsRefs.current[i] = el }}
+                      inputMode="decimal"
+                      type="text"
+                      placeholder="0"
+                      value={row.bps > 0 ? bpsToPercent(row.bps) : ''}
+                      onChange={(e) => handlePctChange(i, e.target.value)}
+                      onBlur={() => touchRowBps(i)}
+                      className="w-12 bg-transparent text-sm outline-none nums font-bold text-right placeholder:opacity-40"
+                      style={{ color: row.bps > 0 ? 'var(--accent)' : 'var(--muted)' }}
+                    />
+                    <span className="text-xs font-bold" style={{ color: row.bps > 0 ? 'var(--accent)' : 'var(--subtle)' }}>%</span>
+                  </div>
                   {previewAmt !== null && previewAmt !== undefined && previewAmt > 0n && (
                     <span
-                      className="ml-auto text-xs tabular-nums font-semibold"
+                      className="ml-auto text-sm nums font-bold"
                       style={{ color: exactlyFull ? 'var(--accent)' : 'var(--muted)' }}
                     >
                       {formatUsdcAmount(previewAmt, 2)} USDC
@@ -343,23 +368,29 @@ export default function StepEditor({ draft, touched, onTouch, onChange, onNext }
           <button
             type="button"
             onClick={addRow}
-            className="mt-2 w-full py-2 rounded-xl flex items-center justify-center gap-1 text-sm transition-colors"
-            style={{ border: '1px dashed var(--border)', color: 'var(--subtle)' }}
+            className="mt-2 w-full py-2.5 rounded-2xl flex items-center justify-center gap-1.5 text-sm font-semibold transition-colors"
+            style={{ border: '1.5px dashed var(--border)', color: 'var(--muted)', background: 'transparent' }}
           >
             <Plus className="size-4" /> Add recipient
           </button>
         )}
       </div>
 
-      {/* Live summary */}
+      {/* Live summary card */}
       <div
-        className="rounded-2xl p-4 flex flex-col gap-2 text-sm"
-        style={{ background: 'var(--surface-muted)' }}
+        className="card p-4 flex flex-col gap-2 text-sm"
       >
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--subtle)' }}>
+            Summary
+          </span>
+          {/* Allocation ring */}
+          <AllocationRing pct={Math.min(100, (allocated / 100))} full={exactlyFull} />
+        </div>
         <SummaryRow label="Recipients" value={`${draft.rows.length}`} />
         <SummaryRow
           label="Allocated"
-          value={`${(allocated / 100).toFixed(2)}% (${allocated} bps)`}
+          value={`${(allocated / 100).toFixed(2)}%`}
           accent={exactlyFull}
           error={allocated > Number(BPS_DENOMINATOR)}
         />
@@ -380,28 +411,28 @@ export default function StepEditor({ draft, touched, onTouch, onChange, onNext }
         {totalParsed !== null && totalParsed > 0n && (
           <SummaryRow label="Total" value={`${formatUsdcAmount(totalParsed, 2)} USDC`} />
         )}
-        {/* Allocation error: always visible (live, not gated by touched) */}
         {validation.allocationError && (
           <ErrorMsg msg={validation.allocationError} />
         )}
       </div>
 
-      {/* Review button — visually disabled when invalid */}
+      {/* Review button */}
       <div className="flex flex-col gap-1.5">
         <button
           onClick={handleNext}
           aria-disabled={!validation.valid}
-          className="w-full py-3.5 rounded-2xl text-sm font-semibold transition-all"
+          className="w-full py-3.5 rounded-full text-sm font-bold transition-all"
           style={{
             background: validation.valid ? 'var(--accent)' : 'var(--surface-muted)',
-            color: validation.valid ? '#0d1b2f' : 'var(--subtle)',
-            cursor: validation.valid ? 'pointer' : 'default',
+            color: validation.valid ? '#fff' : 'var(--subtle)',
+            cursor: 'pointer',
+            border: `1.5px solid ${validation.valid ? 'var(--accent)' : 'var(--border)'}`,
           }}
         >
-          Review distribution
+          Review distribution →
         </button>
         {disableReason && (
-          <p className="text-center text-xs" style={{ color: 'var(--subtle)' }}>
+          <p className="text-center text-xs font-medium" style={{ color: 'var(--subtle)' }}>
             {disableReason}
           </p>
         )}
@@ -421,14 +452,14 @@ function Field({
 }) {
   return (
     <div>
-      <label className="block text-xs font-semibold uppercase tracking-widest mb-1.5" style={{ color: 'var(--subtle)' }}>
+      <label className="block text-xs font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--subtle)' }}>
         {label}
       </label>
       <div
-        className="rounded-xl px-3 py-2.5"
+        className="card px-4 py-3"
         style={{
-          background: 'var(--surface)',
-          border: `1px solid ${error ? 'var(--danger)' : 'var(--border)'}`,
+          borderColor: error ? 'var(--danger)' : 'var(--border)',
+          borderRadius: 16,
         }}
       >
         {children}
@@ -451,9 +482,9 @@ function SummaryRow({
 }) {
   return (
     <div className="flex items-center justify-between">
-      <span style={{ color: 'var(--subtle)' }}>{label}</span>
+      <span className="text-sm" style={{ color: 'var(--muted)' }}>{label}</span>
       <span
-        className="font-semibold tabular-nums"
+        className="font-bold nums text-sm"
         style={{ color: error ? 'var(--danger)' : accent ? 'var(--success)' : 'var(--ink-2)' }}
       >
         {value}
@@ -462,11 +493,31 @@ function SummaryRow({
   )
 }
 
+function AllocationRing({ pct, full }: { pct: number; full: boolean }) {
+  const r = 14
+  const circumference = 2 * Math.PI * r
+  const dash = (pct / 100) * circumference
+  return (
+    <svg width="36" height="36" viewBox="0 0 36 36" className="ring-svg">
+      <circle cx="18" cy="18" r={r} fill="none" stroke="var(--border)" strokeWidth="3" />
+      <circle
+        cx="18" cy="18" r={r}
+        fill="none"
+        stroke={full ? 'var(--success)' : 'var(--accent)'}
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeDasharray={`${dash} ${circumference}`}
+        style={{ transition: 'stroke-dasharray 300ms ease' }}
+      />
+    </svg>
+  )
+}
+
 function ErrorMsg({ msg }: { msg: string }) {
   return (
-    <div className="flex items-center gap-1 mt-1">
+    <div className="flex items-center gap-1 mt-0.5">
       <AlertCircle className="size-3 shrink-0" style={{ color: 'var(--danger)' }} />
-      <span className="text-xs" style={{ color: 'var(--danger)' }}>{msg}</span>
+      <span className="text-xs font-medium" style={{ color: 'var(--danger)' }}>{msg}</span>
     </div>
   )
 }

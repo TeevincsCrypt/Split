@@ -2,53 +2,202 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Arc Dark tokens */
+/* ─── Light bento design system ───────────────────────────────────── */
 :root {
-  --bg: #0d1b2f;
-  --bg-gradient: linear-gradient(180deg, #0d1b2f 0%, #0d1b2f 58%, #122d45 100%);
-  --surface: rgba(255, 255, 255, 0.07);
-  --surface-strong: rgba(255, 255, 255, 0.11);
-  --surface-muted: #1f2f44;
-  --ink: #f9faf3;
-  --ink-2: #e3ecf9;
-  --muted: #cbd5e1;
-  --subtle: #94a3b8;
-  --border: rgba(255, 255, 255, 0.10);
-  --border-strong: rgba(203, 219, 242, 0.35);
-  /* accent: calm teal-mint */
-  --accent: #64d9c0;
-  --accent-dim: rgba(100, 217, 192, 0.15);
-  --accent-hover: #8de8d4;
-  --success: #8dd89f;
-  --danger: #e86d7a;
-  --warning: #f5c842;
+  /* Page & surface */
+  --bg:            #F3F2F1;
+  --bg-hero:       #F9F8F7;
+  --card:          #FFFFFF;
+  --card-hover:    #FAFAF9;
+  --surface-tint:  #F7E9EE;   /* wine tint — fills, soft backgrounds */
+  --surface-tint2: #EBC9D5;   /* medium wine tint */
+  --surface-muted: #F5F4F3;   /* neutral muted surface */
+
+  /* Brand accent — wine */
+  --accent:        #641532;
+  --accent-hover:  #7a1b3d;
+  --accent-dim:    #F7E9EE;
+  --accent-mid:    #D99BB0;
+
+  /* Dark pill (secondary button) */
+  --pill-dark:     #111111;
+  --pill-dark-fg:  #FFFFFF;
+
+  /* Ink / text */
+  --ink:           #141414;
+  --ink-2:         #3D3A38;
+  --muted:         #6F6B68;
+  --subtle:        #A29E9A;
+
+  /* Borders */
+  --border:        #ECEAE8;
+  --border-strong: #D4D0CB;
+
+  /* Semantic */
+  --success:       #2F7D5B;
+  --success-bg:    #EAF5EE;
+  --warning:       #B7791F;
+  --warning-bg:    #FEF3CD;
+  --danger:        #B4232C;
+  --danger-bg:     #FDECEC;
+
+  /* Shadows */
+  --shadow-card:   0 1px 3px 0 rgba(20,20,20,0.06), 0 1px 2px 0 rgba(20,20,20,0.04);
+  --shadow-lift:   0 4px 16px 0 rgba(20,20,20,0.10), 0 1px 4px 0 rgba(20,20,20,0.06);
+
+  /* Radius */
+  --r-card:  28px;
+  --r-btn:   9999px;  /* pill */
+  --r-inner: 16px;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 body {
   margin: 0;
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Manrope', 'Inter Tight', -apple-system, sans-serif;
   min-height: 100dvh;
   background: var(--bg);
   color: var(--ink);
+  -webkit-font-smoothing: antialiased;
 }
 
+/* Display / heading class */
 .display {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Manrope', 'Inter Tight', sans-serif;
   letter-spacing: -0.03em;
 }
 
 .mono {
-  font-family: 'JetBrains Mono', Menlo, monospace;
+  font-family: 'JetBrains Mono', 'Fira Mono', Menlo, monospace;
 }
 
-/* Sonner toast overrides for dark theme */
+/* Tabular numerals globally on amount strings */
+.nums { font-variant-numeric: tabular-nums; }
+
+/* Card base */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-card);
+}
+
+/* Pill button base */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border-radius: var(--r-btn);
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: background 120ms, transform 80ms, box-shadow 120ms;
+}
+.btn-primary:hover  { background: var(--accent-hover); box-shadow: var(--shadow-lift); }
+.btn-primary:active { transform: scale(0.98); }
+
+.btn-dark {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border-radius: var(--r-btn);
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--pill-dark);
+  color: var(--pill-dark-fg);
+  border: none;
+  cursor: pointer;
+  transition: opacity 120ms, transform 80ms;
+}
+.btn-dark:hover  { opacity: 0.85; }
+.btn-dark:active { transform: scale(0.98); }
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border-radius: var(--r-btn);
+  font-size: 14px;
+  font-weight: 600;
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid var(--border-strong);
+  cursor: pointer;
+  transition: background 120ms, transform 80ms;
+}
+.btn-ghost:hover  { background: var(--surface-muted); }
+.btn-ghost:active { transform: scale(0.98); }
+
+/* Icon circle button (44px) */
+.icon-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: box-shadow 120ms, background 120ms;
+  box-shadow: var(--shadow-card);
+  flex-shrink: 0;
+}
+.icon-btn:hover { box-shadow: var(--shadow-lift); background: var(--surface-muted); }
+
+/* Hover lift for cards */
+.hover-lift {
+  transition: transform 120ms, box-shadow 120ms;
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lift);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .hover-lift:hover { transform: none; }
+  .btn-primary:hover,
+  .btn-dark:hover,
+  .btn-ghost:hover { transform: none; }
+}
+
+/* Sonner toast overrides */
 [data-sonner-toaster] {
-  --normal-bg: #1f2f44;
-  --normal-border: rgba(255,255,255,0.12);
-  --normal-text: #f9faf3;
+  --normal-bg: #ffffff;
+  --normal-border: #ECEAE8;
+  --normal-text: #141414;
 }
 
+/* Progress ring (used in allocation summary) */
+.ring-svg {
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+}
+
+/* Chip / pill filter */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--surface-muted);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+.chip-active {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border-color: var(--accent-mid);
+}

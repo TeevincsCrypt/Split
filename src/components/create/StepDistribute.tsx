@@ -18,7 +18,6 @@ type TxState = 'idle' | 'simulating' | 'pending' | 'confirming' | 'success' | 'u
 
 const RECEIPT_TIMEOUT_MS = 120_000
 
-/** Safe stringifier for unknown error arg values */
 function s(v: unknown): string {
   if (v === null || v === undefined) return '?'
   if (typeof v === 'bigint' || typeof v === 'number' || typeof v === 'boolean') return String(v)
@@ -26,10 +25,6 @@ function s(v: unknown): string {
   return '?'
 }
 
-/**
- * Decode a viem error into a friendly message, mapping SplitDistributor custom errors
- * and ERC-20 insufficient allowance/balance.
- */
 function decodeError(err: unknown): string {
   if (err instanceof BaseError) {
     const revert = err.walk((e) => e instanceof ContractFunctionRevertedError)
@@ -59,7 +54,7 @@ function decodeError(err: unknown): string {
   const msg: string = (err as Error)?.message ?? 'Unknown error'
   if (msg.toLowerCase().includes('insufficient allowance')) return 'Insufficient USDC allowance. Go back and re-approve.'
   if (msg.toLowerCase().includes('insufficient balance')) return 'Insufficient USDC balance.'
-  if (msg.includes('User denied') || msg.includes('user rejected')) return '' // silently cancel
+  if (msg.includes('User denied') || msg.includes('user rejected')) return ''
   return msg.slice(0, 200)
 }
 
@@ -76,8 +71,6 @@ export default function StepDistribute({ draft, onBack, onDistributed }: Props) 
   const bpsValues = rows.map((r) => r.bps)
   const recipients = rows.map((r) => getAddress(r.address))
   const contractAddress = ACTIVE_NETWORK.distributorAddress!
-
-  // Wrong-network guard
   const wrongChain = chainId !== ACTIVE_NETWORK.chainId
 
   const { writeContractAsync } = useWriteContract()
@@ -88,12 +81,8 @@ export default function StepDistribute({ draft, onBack, onDistributed }: Props) 
     const deadline = Date.now() + RECEIPT_TIMEOUT_MS
     let receipt: Awaited<ReturnType<typeof publicClient.waitForTransactionReceipt>> | null = null
     try {
-      receipt = await publicClient.waitForTransactionReceipt({
-        hash,
-        timeout: RECEIPT_TIMEOUT_MS,
-      })
+      receipt = await publicClient.waitForTransactionReceipt({ hash, timeout: RECEIPT_TIMEOUT_MS })
     } catch {
-      // Timeout or network error
       if (Date.now() >= deadline - 1000) {
         setTxState('unconfirmed')
       } else {
@@ -109,19 +98,14 @@ export default function StepDistribute({ draft, onBack, onDistributed }: Props) 
       return
     }
 
-    // Parse Distributed event from this distributor address only
     const logs = parseEventLogs({
       abi: SPLIT_DISTRIBUTOR_ABI,
       eventName: 'Distributed',
-      logs: receipt.logs.filter(
-        (l) => l.address.toLowerCase() === contractAddress.toLowerCase(),
-      ),
+      logs: receipt.logs.filter((l) => l.address.toLowerCase() === contractAddress.toLowerCase()),
     })
     const distributed = logs[0]?.args?.distributionId
     if (distributed === undefined) {
-      setErrorMsg(
-        'Transaction succeeded but no Distributed event was found. This is unexpected. Check the explorer.',
-      )
+      setErrorMsg('Transaction succeeded but no Distributed event was found. Check the explorer.')
       setTxState('error')
       return
     }
@@ -135,8 +119,6 @@ export default function StepDistribute({ draft, onBack, onDistributed }: Props) 
     if (!total || !publicClient || wrongChain) return
     setErrorMsg(null)
     setTxState('simulating')
-
-    // Simulate first
     try {
       await publicClient.simulateContract({
         address: contractAddress,
@@ -164,10 +146,7 @@ export default function StepDistribute({ draft, onBack, onDistributed }: Props) 
       })
     } catch (err: unknown) {
       const msg = decodeError(err)
-      if (!msg) {
-        setTxState('idle') // user rejected
-        return
-      }
+      if (!msg) { setTxState('idle'); return }
       setErrorMsg(msg)
       setTxState('error')
       return
@@ -180,14 +159,11 @@ export default function StepDistribute({ draft, onBack, onDistributed }: Props) 
   if (wrongChain) {
     return (
       <div className="flex flex-col gap-4">
-        <div className="p-4 rounded-2xl text-sm" style={{ background: 'rgba(232,109,122,0.1)', border: '1px solid rgba(232,109,122,0.3)', color: 'var(--danger)' }}>
+        <div className="rounded-2xl p-4 text-sm font-medium"
+          style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger)', color: 'var(--danger)' }}>
           Switch to {ACTIVE_NETWORK.name} before distributing.
         </div>
-        <button
-          onClick={onBack}
-          className="flex items-center gap-2 px-4 py-3 rounded-2xl text-sm font-semibold w-fit"
-          style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--muted)' }}
-        >
+        <button onClick={onBack} className="btn-ghost flex items-center gap-2 w-fit">
           <ArrowLeft className="size-4" /> Back
         </button>
       </div>
@@ -195,87 +171,109 @@ export default function StepDistribute({ draft, onBack, onDistributed }: Props) 
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <h2 className="display font-bold text-xl" style={{ color: 'var(--ink)', letterSpacing: '-0.02em' }}>
+    <div className="flex flex-col gap-4">
+      <h2 className="display font-bold text-xl" style={{ color: 'var(--ink)', letterSpacing: '-0.03em' }}>
         Distribute USDC
       </h2>
 
-      <div className="rounded-2xl p-4 flex flex-col gap-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-        <Row label="Split" value={trimmedName} />
-        <Row label="Total" value={`${formatUsdcAmount(total ?? 0n, 2)} USDC`} accent />
-        <Row label="Recipients" value={String(rows.length)} />
+      {/* Big amount card */}
+      <div
+        className="card p-5 flex flex-col items-center gap-1 text-center"
+        style={{ background: 'var(--accent-dim)', border: '1px solid var(--accent-mid)' }}
+      >
+        <span className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--accent)' }}>
+          {trimmedName}
+        </span>
+        <div className="flex items-baseline gap-1 mt-1">
+          <span className="text-sm font-bold" style={{ color: 'var(--accent)' }}>$</span>
+          <span className="display font-extrabold text-4xl nums" style={{ color: 'var(--accent)', letterSpacing: '-0.04em' }}>
+            {formatUsdcAmount(total ?? 0n, 2)}
+          </span>
+          <span className="text-base font-bold" style={{ color: 'var(--accent)' }}>USDC</span>
+        </div>
+        <span className="text-xs font-semibold mt-1" style={{ color: 'var(--accent)' }}>
+          {rows.length} recipient{rows.length !== 1 ? 's' : ''}
+        </span>
       </div>
 
       {/* Status cards */}
       {txState === 'simulating' && (
-        <StatusCard icon={<Loader2 className="size-4 animate-spin" />} color="var(--muted)" msg="Simulating transaction…" />
+        <StatusCard bg="var(--surface-muted)" border="var(--border)">
+          <Loader2 className="size-4 animate-spin shrink-0" style={{ color: 'var(--muted)' }} />
+          <span className="text-sm font-medium" style={{ color: 'var(--muted)' }}>Simulating transaction…</span>
+        </StatusCard>
       )}
       {txState === 'pending' && (
-        <StatusCard icon={<Loader2 className="size-4 animate-spin" />} color="var(--accent)" msg="Waiting for wallet confirmation…" />
+        <StatusCard bg="var(--accent-dim)" border="var(--accent-mid)">
+          <Loader2 className="size-4 animate-spin shrink-0" style={{ color: 'var(--accent)' }} />
+          <span className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>Waiting for wallet confirmation…</span>
+        </StatusCard>
       )}
       {txState === 'confirming' && (
-        <div className="rounded-2xl p-4 flex flex-col gap-2" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <div className="flex items-center gap-2 text-sm font-medium" style={{ color: 'var(--ink-2)' }}>
-            <Loader2 className="size-4 animate-spin" style={{ color: 'var(--accent)' }} />
+        <div className="card p-4 flex flex-col gap-2">
+          <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--ink-2)' }}>
+            <Loader2 className="size-4 animate-spin shrink-0" style={{ color: 'var(--accent)' }} />
             Confirming on {ACTIVE_NETWORK.name}…
           </div>
           {txHash && (
             <a href={buildExplorerTx(txHash)} target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1 text-xs hover:underline" style={{ color: 'var(--accent)' }}>
+              className="flex items-center gap-1 text-xs font-semibold hover:underline" style={{ color: 'var(--accent)' }}>
               View transaction <ExternalLink className="size-3" />
             </a>
           )}
           <p className="text-xs" style={{ color: 'var(--subtle)' }}>
-            Submitted — waiting up to 2 minutes for confirmation. Do not close this window.
+            Submitted — waiting up to 2 minutes. Do not close this window.
           </p>
         </div>
       )}
       {txState === 'unconfirmed' && txHash && (
-        <div className="rounded-2xl p-4 flex flex-col gap-3" style={{ background: 'rgba(245,200,66,0.1)', border: '1px solid rgba(245,200,66,0.3)' }}>
-          <div className="text-sm font-medium" style={{ color: 'var(--warning)' }}>
-            Submitted — not yet confirmed
-          </div>
+        <div className="card p-4 flex flex-col gap-3"
+          style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning)' }}>
+          <div className="text-sm font-bold" style={{ color: 'var(--warning)' }}>Submitted — not yet confirmed</div>
           <p className="text-xs" style={{ color: 'var(--muted)' }}>
             The transaction was submitted but confirmation timed out. It may still confirm.
           </p>
           <a href={buildExplorerTx(txHash)} target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-1 text-xs hover:underline" style={{ color: 'var(--accent)' }}>
+            className="flex items-center gap-1 text-xs font-semibold hover:underline" style={{ color: 'var(--accent)' }}>
             View on explorer <ExternalLink className="size-3" />
           </a>
           <button
             onClick={() => { void pollReceipt(txHash) }}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold w-fit"
-            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--ink-2)' }}
+            className="btn-ghost flex items-center gap-2 text-xs w-fit"
+            style={{ padding: '6px 14px' }}
           >
             <RefreshCw className="size-3" /> Check again
           </button>
         </div>
       )}
       {txState === 'success' && (
-        <div className="flex flex-col gap-2 p-4 rounded-2xl" style={{ background: 'rgba(141,216,159,0.12)', border: '1px solid rgba(141,216,159,0.3)' }}>
-          <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--success)' }}>
-            <CheckCircle2 className="size-4" /> Distribution confirmed!
+        <div className="card p-4 flex flex-col gap-2"
+          style={{ background: 'var(--success-bg)', border: '1px solid var(--success)' }}>
+          <div className="flex items-center gap-2 text-sm font-bold" style={{ color: 'var(--success)' }}>
+            <CheckCircle2 className="size-4 shrink-0" /> Distribution confirmed!
           </div>
           {distributionId !== null && (
-            <span className="text-xs" style={{ color: 'var(--muted)' }}>Distribution #{distributionId.toString()}</span>
+            <span className="text-xs font-medium" style={{ color: 'var(--muted)' }}>
+              Distribution #{distributionId.toString()}
+            </span>
           )}
           {txHash && (
             <a href={buildExplorerTx(txHash)} target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1 text-xs hover:underline" style={{ color: 'var(--accent)' }}>
+              className="flex items-center gap-1 text-xs font-semibold hover:underline" style={{ color: 'var(--accent)' }}>
               View on {ACTIVE_NETWORK.name} explorer <ExternalLink className="size-3" />
             </a>
           )}
         </div>
       )}
       {txState === 'error' && errorMsg && (
-        <div className="flex items-start gap-2 p-3 rounded-2xl text-sm"
-          style={{ background: 'rgba(232,109,122,0.1)', border: '1px solid rgba(232,109,122,0.3)', color: 'var(--danger)' }}>
-          <AlertCircle className="size-4 shrink-0 mt-0.5" />
+        <div className="card p-4 flex items-start gap-3"
+          style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger)' }}>
+          <AlertCircle className="size-4 shrink-0 mt-0.5" style={{ color: 'var(--danger)' }} />
           <div className="flex flex-col gap-1">
-            <span>{errorMsg}</span>
+            <span className="text-sm font-medium" style={{ color: 'var(--danger)' }}>{errorMsg}</span>
             {txHash && (
               <a href={buildExplorerTx(txHash)} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-1 text-xs hover:underline" style={{ color: 'var(--accent)' }}>
+                className="flex items-center gap-1 text-xs font-semibold hover:underline" style={{ color: 'var(--accent)' }}>
                 View on explorer <ExternalLink className="size-3" />
               </a>
             )}
@@ -287,8 +285,7 @@ export default function StepDistribute({ draft, onBack, onDistributed }: Props) 
         <button
           onClick={onBack}
           disabled={txState === 'pending' || txState === 'confirming' || txState === 'success'}
-          className="flex items-center gap-2 px-4 py-3 rounded-2xl text-sm font-semibold disabled:opacity-40"
-          style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--muted)' }}
+          className="btn-ghost flex items-center gap-2 disabled:opacity-40"
         >
           <ArrowLeft className="size-4" /> Back
         </button>
@@ -296,15 +293,14 @@ export default function StepDistribute({ draft, onBack, onDistributed }: Props) 
           <button
             onClick={() => { void handleDistribute() }}
             disabled={txState === 'pending' || txState === 'confirming' || txState === 'success' || txState === 'simulating'}
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-semibold transition-all hover:scale-[1.01] disabled:opacity-40 disabled:cursor-not-allowed disabled:scale-100"
-            style={{ background: 'var(--accent)', color: '#0d1b2f' }}
+            className="btn-primary flex-1 justify-center disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {txState === 'simulating' ? <><Loader2 className="size-4 animate-spin" /> Simulating…</> :
               txState === 'pending' ? <><Loader2 className="size-4 animate-spin" /> Confirm in wallet…</> :
               txState === 'confirming' ? <><Loader2 className="size-4 animate-spin" /> Confirming…</> :
               txState === 'success' ? <><CheckCircle2 className="size-4" /> Confirmed</> :
               txState === 'error' ? 'Try again' :
-              `Distribute ${formatUsdcAmount(total ?? 0n, 2)} USDC`}
+              `Distribute ${formatUsdcAmount(total ?? 0n, 2)} USDC →`}
           </button>
         )}
       </div>
@@ -312,20 +308,13 @@ export default function StepDistribute({ draft, onBack, onDistributed }: Props) 
   )
 }
 
-function Row({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+function StatusCard({ children, bg, border }: { children: React.ReactNode; bg: string; border: string }) {
   return (
-    <div className="flex items-center justify-between text-sm">
-      <span style={{ color: 'var(--subtle)' }}>{label}</span>
-      <span className="font-semibold" style={{ color: accent ? 'var(--accent)' : 'var(--ink-2)' }}>{value}</span>
-    </div>
-  )
-}
-
-function StatusCard({ icon, color, msg }: { icon: React.ReactNode; color: string; msg: string }) {
-  return (
-    <div className="flex items-center gap-2 p-3 rounded-2xl text-sm"
-      style={{ background: 'var(--surface)', border: '1px solid var(--border)', color }}>
-      {icon} {msg}
+    <div
+      className="rounded-2xl p-3.5 flex items-center gap-2"
+      style={{ background: bg, border: `1px solid ${border}` }}
+    >
+      {children}
     </div>
   )
 }

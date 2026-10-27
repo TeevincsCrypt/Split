@@ -51,16 +51,14 @@ const StudioWatermark = () => (
       fontSize: '12px',
       fontWeight: 600,
       fontFamily: 'system-ui, -apple-system, sans-serif',
-      color: '#1B3158',
+      color: '#641532',
       textDecoration: 'none',
       cursor: 'pointer',
-      background: 'rgba(172, 198, 233, 0.85)',
-      backdropFilter: 'blur(12px) saturate(180%)',
-      WebkitBackdropFilter: 'blur(12px) saturate(180%)',
-      borderRadius: '20px',
-      border: '1px solid rgba(255, 255, 255, 0.4)',
+      background: '#FFFFFF',
+      borderRadius: '999px',
+      border: '1px solid #ECEAE8',
       zIndex: 9999,
-      boxShadow: '0 4px 20px rgba(27, 49, 88, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.5)',
+      boxShadow: '0 4px 16px rgba(20, 20, 20, 0.08)',
     }}
   >
     <StudioLogo />
@@ -72,7 +70,28 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <ConnectKitProvider>
+        {/* No --ck-accent-color: when set, ConnectKit ignores the other custom variables */}
+        <ConnectKitProvider
+          mode="light"
+          customTheme={{
+            '--ck-font-family': "'Manrope', 'Inter Tight', -apple-system, sans-serif",
+            '--ck-connectbutton-font-weight': '600',
+            '--ck-connectbutton-font-size': '14px',
+            '--ck-connectbutton-border-radius': '999px',
+            '--ck-connectbutton-color': '#FFFFFF',
+            '--ck-connectbutton-background': '#641532',
+            '--ck-connectbutton-hover-background': '#4E1028',
+            '--ck-connectbutton-background-hover': '#4E1028',
+            '--ck-connectbutton-active-background': '#3F0D21',
+            '--ck-connectbutton-background-active': '#3F0D21',
+            '--ck-primary-button-background': '#641532',
+            '--ck-primary-button-color': '#FFFFFF',
+            '--ck-primary-button-hover-background': '#4E1028',
+            '--ck-primary-button-border-radius': '999px',
+            '--ck-body-background': '#FFFFFF',
+            '--ck-border-radius': '28px',
+          }}
+        >
           <App />
           <StudioWatermark />
           <Toaster position="top-center" />

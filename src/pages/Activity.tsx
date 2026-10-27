@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ExternalLink, Filter, Loader2 } from 'lucide-react'
+import { ExternalLink, Filter, Loader2, X } from 'lucide-react'
 import ContractNotConfigured from '@/components/ContractNotConfigured'
 import RpcErrorBanner from '@/components/RpcErrorBanner'
 import { ACTIVE_NETWORK } from '@/config/networks'
@@ -17,43 +17,39 @@ export default function Activity() {
 
   const {
     events, loading, rpcError, partial, hasOlder, chainHead, scannedFrom, loadOlder, loadingOlder, retry,
-  } = useDistributionHistory({
-    payer: configured ? filterPayer || undefined : undefined,
-  })
+  } = useDistributionHistory({ payer: configured ? filterPayer || undefined : undefined })
 
   if (!configured) return <ContractNotConfigured />
 
-  function applyFilter() {
-    setFilterPayer(filterInput.trim())
-  }
+  function applyFilter() { setFilterPayer(filterInput.trim()) }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 flex flex-col gap-5">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-5">
       <div className="flex items-center justify-between">
-        <h1 className="display font-bold text-xl" style={{ color: 'var(--ink)', letterSpacing: '-0.02em' }}>
+        <h1 className="display font-bold text-2xl" style={{ color: 'var(--ink)', letterSpacing: '-0.03em' }}>
           Activity
         </h1>
         {!loading && (
-          <span className="text-xs tabular-nums" style={{ color: 'var(--subtle)' }}>
+          <span
+            className="px-3 py-1 rounded-full text-xs font-bold"
+            style={{ background: 'var(--surface-muted)', color: 'var(--muted)', border: '1px solid var(--border)' }}
+          >
             {events.length} distribution{events.length !== 1 ? 's' : ''}
           </span>
         )}
       </div>
 
-      {/* Progress context when not loading from start */}
+      {/* Progress context */}
       {!loading && chainHead > 0n && scannedFrom > ACTIVE_NETWORK.deployBlock && (
-        <p className="text-xs" style={{ color: 'var(--subtle)' }}>
+        <p className="text-xs font-medium" style={{ color: 'var(--subtle)' }}>
           Showing events from block {scannedFrom.toString()} to {chainHead.toString()}.
           {hasOlder ? ' Older events not yet loaded.' : ''}
         </p>
       )}
 
       {/* Filter */}
-      <div className="flex gap-2">
-        <div
-          className="flex-1 flex items-center gap-2 rounded-xl px-3 py-2"
-          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-        >
+      <div className="card p-3 flex gap-2">
+        <div className="flex-1 flex items-center gap-2">
           <Filter className="size-4 shrink-0" style={{ color: 'var(--subtle)' }} />
           <input
             type="text"
@@ -61,39 +57,38 @@ export default function Activity() {
             value={filterInput}
             onChange={(e) => setFilterInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && applyFilter()}
-            className="flex-1 bg-transparent text-sm outline-none mono placeholder:font-sans placeholder:opacity-40"
+            className="flex-1 bg-transparent text-sm outline-none mono font-medium placeholder:font-sans placeholder:opacity-40"
             style={{ color: 'var(--ink-2)' }}
           />
+          {filterInput && (
+            <button onClick={() => { setFilterInput(''); setFilterPayer('') }} className="opacity-60 hover:opacity-100 transition-opacity">
+              <X className="size-4" style={{ color: 'var(--muted)' }} />
+            </button>
+          )}
         </div>
-        <button
-          onClick={applyFilter}
-          className="px-3 py-2 rounded-xl text-sm font-semibold"
-          style={{ background: 'var(--accent)', color: '#0d1b2f' }}
-        >
+        <button onClick={applyFilter} className="btn-primary" style={{ padding: '6px 16px', fontSize: 12 }}>
           Filter
         </button>
         {filterPayer && (
           <button
             onClick={() => { setFilterPayer(''); setFilterInput('') }}
-            className="px-3 py-2 rounded-xl text-sm"
-            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--muted)' }}
+            className="chip"
           >
-            Clear
+            {formatAddress(filterPayer)} ×
           </button>
         )}
       </div>
 
       {loading && (
-        <div className="text-sm py-4 text-center" style={{ color: 'var(--subtle)' }}>Loading history…</div>
+        <div className="flex flex-col gap-2">
+          {[1,2,3].map((i) => <div key={i} className="h-16 rounded-2xl animate-pulse" style={{ background: 'var(--surface-muted)' }} />)}
+        </div>
       )}
 
       {!loading && rpcError && <RpcErrorBanner onRetry={retry} />}
 
       {!loading && !rpcError && events.length === 0 && (
-        <div
-          className="rounded-2xl p-8 text-center text-sm"
-          style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--subtle)' }}
-        >
+        <div className="card p-10 text-center text-sm font-medium" style={{ color: 'var(--subtle)' }}>
           {filterPayer ? `No distributions found for ${formatAddress(filterPayer)}.` : 'No distributions yet.'}
         </div>
       )}
@@ -104,20 +99,20 @@ export default function Activity() {
             <Link
               key={ev.distributionId.toString()}
               to={`/d/${ev.distributionId}`}
-              className="flex items-center justify-between p-4 rounded-2xl transition-colors hover:bg-white/5"
-              style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+              className="card px-4 py-3.5 flex items-center justify-between gap-4 hover-lift"
+              style={{ cursor: 'pointer' }}
             >
               <div className="min-w-0">
-                <div className="text-sm font-semibold truncate" style={{ color: 'var(--ink)' }}>
+                <div className="text-sm font-bold truncate" style={{ color: 'var(--ink)' }}>
                   {ev.name || `Distribution #${ev.distributionId}`}
                 </div>
-                <div className="text-xs mt-0.5" style={{ color: 'var(--subtle)' }}>
+                <div className="text-xs mt-0.5 font-medium" style={{ color: 'var(--subtle)' }}>
                   Payer: {formatAddress(ev.payer)} · {ev.recipients.length} recipients
                   {ev.timestamp ? ` · ${formatTimestamp(ev.timestamp)}` : ''}
                 </div>
               </div>
-              <div className="text-right shrink-0 ml-4 flex flex-col items-end gap-1">
-                <span className="text-sm font-bold tabular-nums" style={{ color: 'var(--accent)' }}>
+              <div className="text-right shrink-0 flex flex-col items-end gap-1">
+                <span className="text-sm font-bold nums" style={{ color: 'var(--accent)' }}>
                   {formatUsdcAmount(ev.totalAmount, 2)} USDC
                 </span>
                 <a
@@ -125,7 +120,7 @@ export default function Activity() {
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
-                  className="flex items-center gap-1 text-xs hover:underline"
+                  className="flex items-center gap-1 text-xs font-semibold hover:underline"
                   style={{ color: 'var(--subtle)' }}
                 >
                   #{ev.distributionId.toString()} <ExternalLink className="size-3" />
@@ -136,20 +131,18 @@ export default function Activity() {
         </div>
       )}
 
-      {/* Load older button */}
       {!loading && !rpcError && hasOlder && (
         <button
           onClick={loadOlder}
           disabled={loadingOlder}
-          className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50"
-          style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--muted)' }}
+          className="btn-ghost flex items-center justify-center gap-2 w-full disabled:opacity-50"
         >
           {loadingOlder ? <><Loader2 className="size-4 animate-spin" /> Loading older…</> : 'Load older events'}
         </button>
       )}
 
       {partial && (
-        <p className="text-xs text-center" style={{ color: 'var(--subtle)' }}>
+        <p className="text-xs text-center font-medium" style={{ color: 'var(--subtle)' }}>
           History may be partial — some blocks could not be scanned.
         </p>
       )}
