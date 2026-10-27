@@ -58,9 +58,26 @@ The testnet contract is already deployed (by Arc Studio):
 6. Run one small real distribution (e.g. 1 USDC) through the app and keep the receipt link and tx hash.
 7. Record the address, deploy tx and example tx in `README.md` and `docs/SUBMISSION.md`.
 
-## 3. Hosting the app
+## 3. Hosting on Vercel
 
-`bun run build` writes a static site to `dist/`. Any static host works (Vercel, Netlify,
-Cloudflare Pages). Set the same `VITE_SPLIT_*` variables in the host's environment settings, and
-configure the host to serve `index.html` for unknown paths (SPA fallback) so `/d/:id` links work.
-Arc Studio can also publish to Vercel, Netlify or Hugging Face from its **Integrations** menu.
+`vercel.json` is already set up. It uses Bun to install and build, serves `dist/`, sends every path to
+`index.html` so `/d/:id` receipt links work, and blocks other sites from embedding the app (anti-clickjacking).
+
+1. Go to https://vercel.com/new and **Import** the GitHub repo `teevincscrypt/split`.
+   Leave the build settings alone; `vercel.json` supplies them.
+2. Under **Environment Variables**, add:
+
+   | Name | Testnet value |
+   |---|---|
+   | `VITE_SPLIT_NETWORK` | `testnet` |
+   | `VITE_SPLIT_DISTRIBUTOR_ADDRESS` | `0x43a159af83f4c836940e2e74c8a29ae677c39498` |
+   | `VITE_SPLIT_DEPLOY_BLOCK` | `69249404` |
+   | `VITE_SPLIT_RPC_URL` | leave empty unless the public RPC fails |
+
+3. Click **Deploy**. These values are compiled into the site, so **change a variable → Redeploy**.
+4. Vercel's production site follows the `main` branch. Either merge
+   `claude/arc-studio-cli-setup-mlisfu` into `main`, or set **Settings → Git → Production Branch** to that branch.
+   Every other branch gets its own preview URL.
+5. **After the mainnet deploy:** change the variables to `mainnet`, the new address and the new deploy block,
+   then **Redeploy**. Open `/deploy` on your own machine (`bun run dev`), not on the public site.
+6. Put the Vercel URL in `README.md` and `docs/SUBMISSION.md` ("Live app").
