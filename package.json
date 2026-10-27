@@ -14,7 +14,8 @@
     "build": "tsc --noEmit && vite build",
     "contracts:build": "forge build",
     "contracts:test": "forge test",
-    "test": "vitest run"
+    "test": "vitest run",
+    "export:artifact": "bun run ./scripts/export-artifact.ts"
   },
   "dependencies": {
     "@circle-fin/adapter-viem-v2": "^1.19.2",

@@ -46,6 +46,10 @@ Split lets teams, DAOs, freelancers, and businesses distribute USDC to multiple 
 - `src/lib/validation.ts` - Client-side input validation
 - `src/lib/history.ts` - Chunked getLogs reader (2,000 blocks/call, from deploy block)
 - `src/lib/share.ts` - getShareBase / buildShareLink / installShareSync
+- `src/abi/SplitDistributorArtifact.ts` - AUTO-GENERATED embedded artifact (ABI + bytecode + keccak256). Run `bun run export:artifact` after recompiling.
+- `scripts/export-artifact.ts` - regenerates SplitDistributorArtifact.ts from contracts/out
+- `src/pages/Deploy.tsx` - /deploy page: browser-wallet deployment of SplitDistributor to active network
+- `src/lib/artifact.test.ts` - vitest test asserting embedded bytecode keccak256
 - `src/lib/utils.ts` - cn, formatAddress, formatTimestamp, explorer link builders
 - `src/hooks/useDistributionHistory.ts` - React hook over fetchHistory
 - `contracts/SplitDistributor.sol` - Core split distribution contract

@@ -9,6 +9,7 @@ const CreateSplit = lazy(() => import('@/pages/CreateSplit'))
 const Receipt = lazy(() => import('@/pages/Receipt'))
 const Activity = lazy(() => import('@/pages/Activity'))
 const HowItWorks = lazy(() => import('@/pages/HowItWorks'))
+const Deploy = lazy(() => import('@/pages/Deploy'))
 
 function PageLoader() {
   return (
@@ -47,6 +48,10 @@ export default function App() {
           <Route
             path="/how-it-works"
             element={<Layout><HowItWorks /></Layout>}
+          />
+          <Route
+            path="/deploy"
+            element={<Layout><Deploy /></Layout>}
           />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

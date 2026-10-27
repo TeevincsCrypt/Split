@@ -80,6 +80,21 @@ export default function HowItWorks() {
         </p>
       </Section>
 
+      <Section title="Self-host / deploy">
+        <p>
+          If you want to run your own instance of SplitDistributor — on Arc Mainnet or a
+          different testnet — you can deploy the compiled contract directly from your connected
+          wallet without pasting a private key anywhere.
+        </p>
+        <Link
+          to="/deploy"
+          className="inline-flex items-center gap-1.5 text-sm font-medium mt-1 hover:underline"
+          style={{ color: 'var(--accent)' }}
+        >
+          Open the Deploy page <ArrowRight className="size-3.5" />
+        </Link>
+      </Section>
+
       <Link
         to="/create"
         className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-semibold self-start transition-all hover:scale-[1.02]"
