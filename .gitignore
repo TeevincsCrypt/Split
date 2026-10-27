@@ -8,3 +8,6 @@ broadcast/
 .env
 .env.*
 !.env.example
+
+# Rendered launch video (57 MB); regenerate from design/launch
+design/launch/*.mp4
