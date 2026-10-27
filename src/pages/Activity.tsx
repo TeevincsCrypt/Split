@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ExternalLink, Filter } from 'lucide-react'
+import { ExternalLink, Filter, Loader2 } from 'lucide-react'
 import ContractNotConfigured from '@/components/ContractNotConfigured'
 import { ACTIVE_NETWORK } from '@/config/networks'
 import { useDistributionHistory } from '@/hooks/useDistributionHistory'
@@ -14,7 +14,9 @@ export default function Activity() {
 
   const configured = Boolean(ACTIVE_NETWORK.distributorAddress)
 
-  const { events, loading, partial, progress } = useDistributionHistory({
+  const {
+    events, loading, partial, hasOlder, chainHead, scannedFrom, loadOlder, loadingOlder,
+  } = useDistributionHistory({
     payer: configured ? filterPayer || undefined : undefined,
   })
 
@@ -36,6 +38,14 @@ export default function Activity() {
           </span>
         )}
       </div>
+
+      {/* Progress context when not loading from start */}
+      {!loading && chainHead > 0n && scannedFrom > ACTIVE_NETWORK.deployBlock && (
+        <p className="text-xs" style={{ color: 'var(--subtle)' }}>
+          Showing events from block {scannedFrom.toString()} to {chainHead.toString()}.
+          {hasOlder ? ' Older events not yet loaded.' : ''}
+        </p>
+      )}
 
       {/* Filter */}
       <div className="flex gap-2">
@@ -72,13 +82,7 @@ export default function Activity() {
         )}
       </div>
 
-      {/* Progress */}
-      {loading && progress && (
-        <div className="text-xs" style={{ color: 'var(--subtle)' }}>
-          Scanning blocks… {Math.round((progress.loaded / Math.max(progress.total, 1)) * 100)}%
-        </div>
-      )}
-      {loading && !progress && (
+      {loading && (
         <div className="text-sm py-4 text-center" style={{ color: 'var(--subtle)' }}>Loading history…</div>
       )}
 
@@ -129,9 +133,21 @@ export default function Activity() {
         </div>
       )}
 
+      {/* Load older button */}
+      {!loading && hasOlder && (
+        <button
+          onClick={loadOlder}
+          disabled={loadingOlder}
+          className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--muted)' }}
+        >
+          {loadingOlder ? <><Loader2 className="size-4 animate-spin" /> Loading older…</> : 'Load older events'}
+        </button>
+      )}
+
       {partial && (
         <p className="text-xs text-center" style={{ color: 'var(--subtle)' }}>
-          History may be partial — RPC block range limit reached. Showing what was loaded.
+          History may be partial — some blocks could not be scanned.
         </p>
       )}
     </div>

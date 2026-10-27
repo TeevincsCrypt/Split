@@ -51,6 +51,14 @@ Copy `.env.example` to `.env` and adjust as needed.
 bun run dev
 ```
 
+### Build (frontend production)
+
+```bash
+bun run build
+```
+
+Typechecks `src/` only (scripts/ is excluded) then runs `vite build`. Output goes to `dist/`.
+
 ### Build (contracts)
 
 ```bash

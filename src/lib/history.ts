@@ -1,11 +1,14 @@
 /**
  * Reads Distributed events from the chain via getLogs in chunked ranges.
- * No backend — the chain is the source of truth.
+ * Strategy: newest-first bounded initial window (last INITIAL_WINDOW blocks from head).
+ * Callers can extend backwards via `fetchOlderHistory`.
+ * Receipt page uses indexed distributionId topic filter for fast single-event lookup.
  */
 
 import { createPublicClient, http, parseAbiItem, decodeEventLog } from 'viem'
 import { arcTestnet } from 'viem/chains'
-import { ACTIVE_NETWORK } from '@/config/networks'
+import { arcMainnet } from '@/config'
+import { ACTIVE_NETWORK, ACTIVE_PROXY_CHAIN_KEY } from '@/config/networks'
 import { SPLIT_DISTRIBUTOR_ABI } from '@/abi/SplitDistributor'
 
 export interface DistributionEvent {
@@ -23,24 +26,23 @@ export interface DistributionEvent {
 }
 
 const CHUNK_SIZE = 2_000n
+// Default window shown without "Load older" — recent 50,000 blocks (~1–2 days on Arc)
+const INITIAL_WINDOW = 50_000n
 
-// Use the RPC proxy env if available, else fall back to the chain's default
+// RPC: proxy if available, else public
 const proxyBase: string = (import.meta.env.VITE_RPC_PROXY_BASE_URL as string | undefined) ?? ''
 const proxyToken: string = (import.meta.env.VITE_RPC_PROXY_TOKEN as string | undefined) ?? ''
 const proxyChainsRaw: string = (import.meta.env.VITE_RPC_PROXY_CHAINS as string | undefined) ?? ''
 const proxyChains: string[] = proxyChainsRaw.split(',')
-const rpcUrl: string =
-  proxyBase && proxyChains.includes('Arc_Testnet')
-    ? `${proxyBase}/api/rpc/Arc_Testnet?_rpc_token=${proxyToken}`
+export const rpcUrl: string =
+  proxyBase && proxyChains.includes(ACTIVE_PROXY_CHAIN_KEY)
+    ? `${proxyBase}/api/rpc/${ACTIVE_PROXY_CHAIN_KEY}?_rpc_token=${proxyToken}`
     : ACTIVE_NETWORK.rpcUrl
 
-const arcChain =
-  ACTIVE_NETWORK.chainId === 5042002
-    ? arcTestnet
-    : { id: ACTIVE_NETWORK.chainId, name: ACTIVE_NETWORK.name, nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 }, rpcUrls: { default: { http: [ACTIVE_NETWORK.rpcUrl] } } }
+const activeChain = ACTIVE_NETWORK.chainId === 5042 ? arcMainnet : arcTestnet
 
 export const publicClient = createPublicClient({
-  chain: arcChain,
+  chain: activeChain,
   transport: http(rpcUrl),
 })
 
@@ -50,59 +52,60 @@ const distributedEventAbi = parseAbiItem(
 
 export interface FetchHistoryOptions {
   payer?: string
+  /** Override fromBlock (for "Load older" — start earlier than the current window) */
+  fromBlock?: bigint
+  /** Override toBlock (for "Load older" — scan up to this block) */
+  toBlock?: bigint
   onProgress?: (loaded: number, total: number) => void
 }
 
-export async function fetchHistory(opts: FetchHistoryOptions = {}): Promise<{
+export interface FetchHistoryResult {
   events: DistributionEvent[]
   partial: boolean
-}> {
-  const contractAddress = ACTIVE_NETWORK.distributorAddress
-  if (!contractAddress) return { events: [], partial: false }
+  /** Oldest block that was scanned in this call */
+  scannedFrom: bigint
+  /** Head block at time of scan */
+  chainHead: bigint
+}
 
-  const fromBlock = ACTIVE_NETWORK.deployBlock
-  let toBlock: bigint
-  try {
-    toBlock = await publicClient.getBlockNumber()
-  } catch {
-    return { events: [], partial: true }
-  }
-
-  const totalBlocks = toBlock - fromBlock
+async function scanRange(
+  contractAddress: `0x${string}`,
+  from: bigint,
+  to: bigint,
+  payer: string | undefined,
+  onProgress?: (loaded: number, total: number) => void,
+): Promise<{ logs: Awaited<ReturnType<typeof publicClient.getLogs>>; partial: boolean }> {
+  const total = to - from + 1n
   let loaded = 0n
   const rawLogs: Awaited<ReturnType<typeof publicClient.getLogs>> = []
   let partial = false
 
-  for (let start = fromBlock; start <= toBlock; start += CHUNK_SIZE) {
-    const end = start + CHUNK_SIZE - 1n < toBlock ? start + CHUNK_SIZE - 1n : toBlock
+  for (let start = from; start <= to; start += CHUNK_SIZE) {
+    const end = start + CHUNK_SIZE - 1n < to ? start + CHUNK_SIZE - 1n : to
     try {
       const logs = await publicClient.getLogs({
         address: contractAddress,
         event: distributedEventAbi,
         fromBlock: start,
         toBlock: end,
+        args: payer ? { payer: payer as `0x${string}` } : {},
       })
       rawLogs.push(...logs)
       loaded += end - start + 1n
-      opts.onProgress?.(Number(loaded), Number(totalBlocks))
+      onProgress?.(Number(loaded), Number(total))
     } catch {
       partial = true
       break
     }
   }
+  return { logs: rawLogs, partial }
+}
 
-  // Filter by payer if provided
-  const filtered = opts.payer
-    ? rawLogs.filter(
-        (log) =>
-          log.topics[2]?.toLowerCase() ===
-          ('0x' + opts.payer!.slice(2).toLowerCase().padStart(64, '0')),
-      )
-    : rawLogs
-
-  // Decode and fetch timestamps
+async function decodeLogs(
+  rawLogs: Awaited<ReturnType<typeof publicClient.getLogs>>,
+): Promise<DistributionEvent[]> {
   const events: DistributionEvent[] = []
-  for (const log of filtered) {
+  for (const log of rawLogs) {
     try {
       const decoded = decodeEventLog({
         abi: SPLIT_DISTRIBUTOR_ABI,
@@ -146,7 +149,97 @@ export async function fetchHistory(opts: FetchHistoryOptions = {}): Promise<{
       /* skip malformed log */
     }
   }
-
+  // Newest first
   events.sort((a, b) => (b.distributionId > a.distributionId ? 1 : -1))
-  return { events, partial }
+  return events
+}
+
+/**
+ * Fetch the most-recent window of Distributed events (newest-first).
+ * Starts from max(deployBlock, head - INITIAL_WINDOW) to head.
+ */
+export async function fetchHistory(opts: FetchHistoryOptions = {}): Promise<FetchHistoryResult> {
+  const contractAddress = ACTIVE_NETWORK.distributorAddress
+  if (!contractAddress) return { events: [], partial: false, scannedFrom: 0n, chainHead: 0n }
+
+  let chainHead: bigint
+  try {
+    chainHead = await publicClient.getBlockNumber()
+  } catch {
+    return { events: [], partial: true, scannedFrom: 0n, chainHead: 0n }
+  }
+
+  const deployBlock = ACTIVE_NETWORK.deployBlock
+  const windowFrom = chainHead > INITIAL_WINDOW ? chainHead - INITIAL_WINDOW : deployBlock
+  const from = opts.fromBlock ?? (windowFrom > deployBlock ? windowFrom : deployBlock)
+  const to = opts.toBlock ?? chainHead
+
+  const { logs, partial } = await scanRange(contractAddress, from, to, opts.payer, opts.onProgress)
+  const events = await decodeLogs(logs)
+  return { events, partial, scannedFrom: from, chainHead }
+}
+
+/**
+ * Fetch older events — scans from `from` up to `to` (exclusive of already-fetched window).
+ * Used by "Load older" button.
+ */
+export async function fetchOlderHistory(
+  upToBlock: bigint,
+  payer?: string,
+  onProgress?: (loaded: number, total: number) => void,
+): Promise<FetchHistoryResult> {
+  const contractAddress = ACTIVE_NETWORK.distributorAddress
+  if (!contractAddress) return { events: [], partial: false, scannedFrom: 0n, chainHead: upToBlock }
+
+  let chainHead: bigint
+  try {
+    chainHead = await publicClient.getBlockNumber()
+  } catch {
+    chainHead = upToBlock
+  }
+
+  const deployBlock = ACTIVE_NETWORK.deployBlock
+  if (upToBlock <= deployBlock) return { events: [], partial: false, scannedFrom: deployBlock, chainHead }
+
+  // Scan INITIAL_WINDOW blocks older than the current oldest
+  const windowSize = INITIAL_WINDOW
+  const to = upToBlock - 1n
+  const from = to > windowSize + deployBlock ? to - windowSize : deployBlock
+
+  const { logs, partial } = await scanRange(contractAddress, from, to, payer, onProgress)
+  const events = await decodeLogs(logs)
+  return { events, partial, scannedFrom: from, chainHead }
+}
+
+/**
+ * Fetch a single distribution by ID using the indexed topic filter.
+ * Much faster than a full scan for the Receipt page.
+ */
+export async function fetchEventById(
+  distributionId: bigint,
+): Promise<DistributionEvent | null> {
+  const contractAddress = ACTIVE_NETWORK.distributorAddress
+  if (!contractAddress) return null
+
+  let chainHead: bigint
+  try {
+    chainHead = await publicClient.getBlockNumber()
+  } catch {
+    return null
+  }
+
+  try {
+    const logs = await publicClient.getLogs({
+      address: contractAddress,
+      event: distributedEventAbi,
+      fromBlock: ACTIVE_NETWORK.deployBlock,
+      toBlock: chainHead,
+      args: { distributionId },
+    })
+    if (logs.length === 0) return null
+    const events = await decodeLogs(logs)
+    return events[0] ?? null
+  } catch {
+    return null
+  }
 }

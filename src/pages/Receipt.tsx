@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ExternalLink, Copy, Check, ArrowLeft } from 'lucide-react'
 import { ACTIVE_NETWORK } from '@/config/networks'
-import { fetchHistory, type DistributionEvent } from '@/lib/history'
+import { fetchEventById, type DistributionEvent } from '@/lib/history'
 import { formatUsdcAmount } from '@/lib/allocation'
 import { formatAddress, buildExplorerTx, buildExplorerAddress, formatTimestamp } from '@/lib/utils'
 import { buildShareLink } from '@/lib/share'
@@ -20,9 +20,8 @@ export default function Receipt() {
 
   useEffect(() => {
     if (!id || !configured) return
-    void fetchHistory({}).then(({ events }) => {
-      const found = events.find((e) => e.distributionId.toString() === id)
-      setEvent(found ?? null)
+    void fetchEventById(BigInt(id)).then((found) => {
+      setEvent(found)
       setLoading(false)
     })
     void buildShareLink(`/d/${id}`).then(setShareLink)

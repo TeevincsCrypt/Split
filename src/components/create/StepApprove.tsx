@@ -1,10 +1,11 @@
 import { useEffect } from 'react'
-import { ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Loader2, ExternalLink } from 'lucide-react'
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { erc20Abi } from 'viem'
 import { type SplitDraft } from '@/pages/CreateSplit'
 import { ACTIVE_NETWORK } from '@/config/networks'
 import { formatUsdcAmount } from '@/lib/allocation'
+import { buildExplorerTx } from '@/lib/utils'
 
 interface Props {
   draft: SplitDraft
@@ -25,7 +26,7 @@ export default function StepApprove({ draft, onBack, onNext }: Props) {
     chainId: ACTIVE_NETWORK.chainId,
   })
 
-  const { data: balance } = useReadContract({
+  const { data: balance, refetch: refetchBalance } = useReadContract({
     address: ACTIVE_NETWORK.usdcAddress,
     abi: erc20Abi,
     functionName: 'balanceOf',
@@ -37,23 +38,23 @@ export default function StepApprove({ draft, onBack, onNext }: Props) {
   const hasBalance = balance !== undefined && total !== null && balance >= total
 
   const { writeContract, data: approveTxHash, isPending, error: writeError } = useWriteContract()
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: approveTxHash })
+  const { isLoading: isConfirming, isSuccess, isError: isReceiptError, data: receipt } =
+    useWaitForTransactionReceipt({ hash: approveTxHash })
 
-  // Re-check allowance after approval confirmed
+  // After approval receipt: refetch both allowance and balance, then advance
   useEffect(() => {
-    if (isSuccess) {
-      void refetchAllowance()
-    }
-  }, [isSuccess, refetchAllowance])
+    if (!isSuccess && !isReceiptError) return
+    void refetchAllowance()
+    void refetchBalance()
+  }, [isSuccess, isReceiptError, refetchAllowance, refetchBalance])
 
-  // Auto-advance when allowance is sufficient
+  // Auto-advance only once allowance is freshly confirmed >= total
   useEffect(() => {
-    if (sufficient) {
-      // small delay so user can see the check
+    if (sufficient && !isConfirming) {
       const t = setTimeout(() => onNext(), 800)
       return () => clearTimeout(t)
     }
-  }, [sufficient, onNext])
+  }, [sufficient, isConfirming, onNext])
 
   function handleApprove() {
     if (!total) return
@@ -69,6 +70,9 @@ export default function StepApprove({ draft, onBack, onNext }: Props) {
   const userRejected = writeError?.message?.toLowerCase().includes('user rejected') ||
     writeError?.message?.toLowerCase().includes('denied')
 
+  // Receipt reverted
+  const receiptReverted = isReceiptError || (receipt?.status === 'reverted')
+
   return (
     <div className="flex flex-col gap-5">
       <h2 className="display font-bold text-xl" style={{ color: 'var(--ink)', letterSpacing: '-0.02em' }}>
@@ -82,25 +86,53 @@ export default function StepApprove({ draft, onBack, onNext }: Props) {
         <Row label="Sufficient?" value={sufficient ? 'Yes' : 'No'} success={sufficient} />
       </div>
 
+      {/* Approval tx hash while confirming */}
+      {approveTxHash && (isConfirming || isSuccess) && (
+        <div className="rounded-xl p-3 flex flex-col gap-1" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <span className="text-xs font-medium" style={{ color: 'var(--muted)' }}>
+            {isConfirming ? 'Confirming approval…' : 'Approval confirmed'}
+          </span>
+          <a
+            href={buildExplorerTx(approveTxHash)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-xs hover:underline"
+            style={{ color: 'var(--accent)' }}
+          >
+            View approval tx <ExternalLink className="size-3" />
+          </a>
+        </div>
+      )}
+
+      {receiptReverted && approveTxHash && (
+        <div className="rounded-xl p-3 text-sm" style={{ background: 'rgba(232,109,122,0.1)', border: '1px solid rgba(232,109,122,0.3)', color: 'var(--danger)' }}>
+          Approval transaction was reverted.{' '}
+          <a href={buildExplorerTx(approveTxHash)} target="_blank" rel="noopener noreferrer"
+            className="underline" style={{ color: 'var(--accent)' }}>
+            View on explorer.
+          </a>
+        </div>
+      )}
+
       {!hasBalance && balance !== undefined && (
-        <div
-          className="rounded-2xl p-3 text-sm"
-          style={{ background: 'rgba(232,109,122,0.12)', border: '1px solid rgba(232,109,122,0.3)', color: 'var(--danger)' }}
-        >
+        <div className="rounded-2xl p-3 text-sm"
+          style={{ background: 'rgba(232,109,122,0.12)', border: '1px solid rgba(232,109,122,0.3)', color: 'var(--danger)' }}>
           Insufficient USDC balance. You need {formatUsdcAmount(total ?? 0n, 2)} USDC but only have {formatUsdcAmount(balance, 2)} USDC.
         </div>
       )}
 
-      {!sufficient && (
-        <div className="rounded-2xl p-3 text-sm" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--muted)' }}>
-          You need to approve the Split contract to spend exactly{' '}
+      {!sufficient && !receiptReverted && (
+        <div className="rounded-2xl p-3 text-sm"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--muted)' }}>
+          Approve the Split contract to spend exactly{' '}
           <strong style={{ color: 'var(--ink)' }}>{formatUsdcAmount(total ?? 0n, 2)} USDC</strong>{' '}
-          on your behalf. This is a one-time approval for this exact amount — not unlimited.
+          on your behalf. Exact amount — not unlimited.
         </div>
       )}
 
       {sufficient && (
-        <div className="flex items-center gap-2 p-3 rounded-2xl" style={{ background: 'rgba(141,216,159,0.12)', border: '1px solid rgba(141,216,159,0.3)' }}>
+        <div className="flex items-center gap-2 p-3 rounded-2xl"
+          style={{ background: 'rgba(141,216,159,0.12)', border: '1px solid rgba(141,216,159,0.3)' }}>
           <CheckCircle2 className="size-4" style={{ color: 'var(--success)' }} />
           <span className="text-sm font-medium" style={{ color: 'var(--success)' }}>
             Allowance sufficient — continuing…
@@ -112,7 +144,7 @@ export default function StepApprove({ draft, onBack, onNext }: Props) {
         <div className="text-sm" style={{ color: 'var(--muted)' }}>Approval cancelled — try again when ready.</div>
       )}
 
-      {!userRejected && writeError && !isPending && (
+      {!userRejected && writeError && !isPending && !receiptReverted && (
         <div className="text-sm" style={{ color: 'var(--danger)' }}>
           {writeError.message.slice(0, 120)}
         </div>
@@ -135,6 +167,7 @@ export default function StepApprove({ draft, onBack, onNext }: Props) {
           >
             {isPending ? <><Loader2 className="size-4 animate-spin" /> Confirm in wallet…</> :
               isConfirming ? <><Loader2 className="size-4 animate-spin" /> Confirming…</> :
+              receiptReverted ? 'Try again' :
               'Approve USDC'}
           </button>
         )}
@@ -147,7 +180,8 @@ function Row({ label, value, accent, success }: { label: string; value: string; 
   return (
     <div className="flex items-center justify-between text-sm">
       <span style={{ color: 'var(--subtle)' }}>{label}</span>
-      <span className="font-semibold tabular-nums" style={{ color: success ? 'var(--success)' : accent ? 'var(--accent)' : 'var(--ink-2)' }}>
+      <span className="font-semibold tabular-nums"
+        style={{ color: success ? 'var(--success)' : accent ? 'var(--accent)' : 'var(--ink-2)' }}>
         {value}
       </span>
     </div>

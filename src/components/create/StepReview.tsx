@@ -18,7 +18,7 @@ export default function StepReview({ draft, onBack, onNext }: Props) {
   const [confirmed, setConfirmed] = useState(false)
   const [gasEstimate, setGasEstimate] = useState<bigint | null | 'error'>('error')
   const [estimating, setEstimating] = useState(false)
-  const publicClient = usePublicClient()
+  const publicClient = usePublicClient({ chainId: ACTIVE_NETWORK.chainId })
 
   const { totalAmountParsed: total, rows, name } = draft
   const bpsValues = rows.map((r) => r.bps)
