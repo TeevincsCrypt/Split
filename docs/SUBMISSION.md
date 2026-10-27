@@ -23,7 +23,9 @@ is paid or nothing moves. Every payout is a `Distributed` event that anyone can 
   3. `03-fixes.md`: code-review fixes (mainnet chain config, env validation, chain-pinned reads, decoded errors, receipt timeouts, history paging).
   4. `04-testnet-proof.md`: an automated testnet proof. It stopped at a Circle API-key consent request, which was declined, and the owner runs the proof from their own wallet instead.
   5. `05-deploy-page.md`: the `/deploy` page, so the owner deploys to mainnet from their own wallet.
-- Arc Studio results: 40/40 Foundry tests (re-run independently: 40 passed), Slither 0 findings, 23/23 vitest tests.
+  6. `06-polish.md`: mainnet RPC override, honest RPC-error states, mobile navigation, editor usable before connecting.
+  7. `07-editor.md`: an exact preview for invalid allocations, plus live field errors.
+- Arc Studio results: 40/40 Foundry tests (re-run independently: 40 passed), Slither 0 findings, 36/36 vitest tests.
 
 ## Contracts
 | Network | Address | Deploy tx |

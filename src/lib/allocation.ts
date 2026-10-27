@@ -105,3 +105,38 @@ export function equalBps(n: number): number[] {
 export function sumBps(bps: number[]): number {
   return bps.reduce((a, b) => a + b, 0)
 }
+
+/**
+ * Preview per-recipient amounts for live UI display.
+ *
+ * Unlike computeAmounts (which mirrors the contract's remainder rule
+ * unconditionally), this function only applies the remainder rule when
+ * sum(bps) === 10_000. When the allocation is invalid (under- or
+ * over-allocated), every row gets floor(total * bps[i] / 10_000) so
+ * the UI never shows an inflated last-row number that implies the split
+ * is valid. Returns null amounts for bps === 0 rows.
+ *
+ * computeAmounts is NOT changed; call it for the actual on-chain values.
+ */
+export function previewAmounts(
+  totalAmount: bigint,
+  bps: number[],
+): (bigint | null)[] {
+  const n = bps.length
+  if (n === 0) return []
+  const total = sumBps(bps)
+  const exactlyFull = total === Number(BPS_DENOMINATOR)
+
+  if (exactlyFull) {
+    // Mirror contract exactly: floor for i < n-1, remainder to last.
+    return computeAmounts(totalAmount, bps).map((a, i) =>
+      bps[i] === 0 ? null : a,
+    )
+  }
+
+  // Invalid allocation: floor only, no remainder redistribution.
+  return bps.map((b) => {
+    if (b === 0) return null
+    return (totalAmount * BigInt(b)) / BPS_DENOMINATOR
+  })
+}

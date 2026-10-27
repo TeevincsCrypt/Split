@@ -46,7 +46,7 @@ Status legend: ✅ done with evidence · ⏳ pending · ⚠️ known limitation
 
 ```bash
 forge test            # contracts (needs solc 0.8.28 + `bun install` for OpenZeppelin)
-bun run test          # vitest allocation tests
+bun run test          # vitest tests
 bun run lint
 bun run build         # typecheck src/ + vite build
 ```

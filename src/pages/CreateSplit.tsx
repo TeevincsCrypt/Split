@@ -4,7 +4,7 @@ import { useAccount } from 'wagmi'
 import ContractNotConfigured from '@/components/ContractNotConfigured'
 import ConnectPrompt from '@/components/ConnectPrompt'
 import { ACTIVE_NETWORK } from '@/config/networks'
-import StepEditor from '@/components/create/StepEditor'
+import StepEditor, { type TouchedState, initTouched } from '@/components/create/StepEditor'
 import StepReview from '@/components/create/StepReview'
 import StepApprove from '@/components/create/StepApprove'
 import StepDistribute from '@/components/create/StepDistribute'
@@ -42,6 +42,11 @@ export default function CreateSplit() {
   const navigate = useNavigate()
   const [step, setStep] = useState<CreateStep>('editor')
   const [draft, setDraft] = useState<SplitDraft>(EMPTY_DRAFT)
+  const [touched, setTouched] = useState<TouchedState>(() => initTouched(EMPTY_DRAFT.rows.length))
+
+  function patchTouched(patch: Partial<TouchedState>) {
+    setTouched((prev) => ({ ...prev, ...patch }))
+  }
 
   if (!ACTIVE_NETWORK.distributorAddress) return <ContractNotConfigured />
 
@@ -98,6 +103,8 @@ export default function CreateSplit() {
       {step === 'editor' && (
         <StepEditor
           draft={draft}
+          touched={touched}
+          onTouch={patchTouched}
           onChange={setDraft}
           onNext={handleEditorNext}
         />

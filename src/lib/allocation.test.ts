@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   computeAmounts,
+  previewAmounts,
   percentToBps,
   bpsToPercent,
   parseUsdcInput,
@@ -157,5 +158,86 @@ describe('sumBps', () => {
 
   it('detects invalid totals', () => {
     expect(sumBps([5000, 5001])).not.toBe(Number(BPS_DENOMINATOR))
+  })
+})
+
+describe('previewAmounts', () => {
+  it('valid allocation — matches computeAmounts exactly (remainder to last)', () => {
+    // sum = 10_000, so preview == computeAmounts
+    const total = 1_000_000n // 1.000000 USDC
+    const bps = [4000, 2500, 2000, 1500]
+    const preview = previewAmounts(total, bps)
+    const exact = computeAmounts(total, bps)
+    expect(preview).toEqual(exact.map((a) => a))
+  })
+
+  it('valid allocation — 3-way rounding remainder goes to last', () => {
+    const total = 1_000_001n
+    const bps = [3333, 3333, 3334]
+    const preview = previewAmounts(total, bps)
+    // floor(1_000_001 * 3333 / 10_000) = 333300 for first two
+    expect(preview[0]).toBe(333_300n)
+    expect(preview[1]).toBe(333_300n)
+    // last gets remainder: 1_000_001 - 333_300 - 333_300 = 333_401
+    expect(preview[2]).toBe(333_401n)
+    const sum = (preview as bigint[]).reduce((a, b) => a + b, 0n)
+    expect(sum).toBe(total)
+  })
+
+  it('invalid allocation (9900 bps) — floor only, no remainder rule', () => {
+    // The bug case: 100 USDC, bps [3900, 2500, 2000, 1500] sum = 9900
+    const total = 100_000_000n // 100 USDC
+    const bps = [3900, 2500, 2000, 1500]
+    const preview = previewAmounts(total, bps)
+    // Each row is strictly floor(total * bps[i] / 10_000)
+    expect(preview[0]).toBe(39_000_000n) // floor(100 * 39 / 100)
+    expect(preview[1]).toBe(25_000_000n)
+    expect(preview[2]).toBe(20_000_000n)
+    expect(preview[3]).toBe(15_000_000n) // NOT 16_000_000
+    // Sum < total (1_000_000 unallocated)
+    const sum = (preview as bigint[]).reduce((a, b) => a + b, 0n)
+    expect(sum).toBeLessThan(total)
+    expect(sum).toBe(99_000_000n)
+  })
+
+  it('invalid allocation (over 10_000) — floor only', () => {
+    const total = 100_000_000n
+    const bps = [5000, 5001] // 10001
+    const preview = previewAmounts(total, bps)
+    expect(preview[0]).toBe(50_000_000n)
+    expect(preview[1]).toBe(50_010_000n) // floor only, no remainder correction
+  })
+
+  it('returns null for bps=0 rows in invalid allocation', () => {
+    const total = 1_000_000n
+    const bps = [5000, 0, 5000] // sum = 10000 but row 2 is 0
+    const preview = previewAmounts(total, bps)
+    // sum IS 10_000, so computeAmounts path; bps[1]=0 → null
+    expect(preview[1]).toBeNull()
+  })
+
+  it('returns null for bps=0 rows in under-allocation', () => {
+    const total = 1_000_000n
+    const bps = [5000, 0, 4000] // sum = 9000
+    const preview = previewAmounts(total, bps)
+    expect(preview[1]).toBeNull()
+    expect(preview[0]).toBe(500_000n)
+    expect(preview[2]).toBe(400_000n)
+  })
+
+  it('returns empty array for empty bps', () => {
+    expect(previewAmounts(1_000_000n, [])).toEqual([])
+  })
+
+  it('unallocated amount: preview sums show gap', () => {
+    // 1 USDC, bps [4000, 2500] = 6500 bps, 3500 unallocated
+    const total = 1_000_000n
+    const bps = [4000, 2500]
+    const preview = previewAmounts(total, bps)
+    expect(preview[0]).toBe(400_000n)
+    expect(preview[1]).toBe(250_000n)
+    const sum = (preview as bigint[]).reduce((a, b) => a + b, 0n)
+    // 350_000 unallocated
+    expect(total - sum).toBe(350_000n)
   })
 })

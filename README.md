@@ -83,7 +83,7 @@ These are public values; no secrets belong in `.env` for the frontend.
 
 ```bash
 forge test        # 40 contract tests (unit, revert, reentrancy, fuzz, gas)
-bun run test      # 23 vitest allocation tests
+bun run test      # 36 vitest tests (allocation + embedded-bytecode hash)
 bun run lint
 bun run build     # typecheck + production build
 ```
