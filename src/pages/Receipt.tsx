@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ExternalLink, Copy, Check, ArrowLeft } from 'lucide-react'
+import { ExternalLink, Copy, Check, ArrowLeft, RefreshCw } from 'lucide-react'
 import { ACTIVE_NETWORK } from '@/config/networks'
 import { fetchEventById, type DistributionEvent } from '@/lib/history'
 import { formatUsdcAmount } from '@/lib/allocation'
@@ -12,20 +12,32 @@ export default function Receipt() {
   const { id } = useParams<{ id: string }>()
   const [event, setEvent] = useState<DistributionEvent | null>(null)
   const [loading, setLoading] = useState(true)
+  const [rpcError, setRpcError] = useState(false)
   const [copied, setCopied] = useState(false)
   const [shareLink, setShareLink] = useState('')
   const [copiedHash, setCopiedHash] = useState(false)
+  const [retryToken, setRetryToken] = useState(0)
 
   const configured = Boolean(ACTIVE_NETWORK.distributorAddress)
 
   useEffect(() => {
     if (!id || !configured) return
-    void fetchEventById(BigInt(id)).then((found) => {
-      setEvent(found)
+    let cancelled = false
+    const run = async () => {
+      const [result] = await Promise.all([
+        fetchEventById(BigInt(id)),
+        buildShareLink(`/d/${id}`).then((link) => { if (!cancelled) setShareLink(link) }),
+      ])
+      if (cancelled) return
+      setEvent(result.event)
+      setRpcError(result.rpcError)
       setLoading(false)
-    })
-    void buildShareLink(`/d/${id}`).then(setShareLink)
-  }, [id, configured])
+    }
+    void run()
+    return () => { cancelled = true }
+  }, [id, configured, retryToken])
+
+  const retry = useCallback(() => setRetryToken((t) => t + 1), [])
 
   if (!configured) return <ContractNotConfigured />
 
@@ -51,7 +63,27 @@ export default function Receipt() {
     )
   }
 
-  if (!event) {
+  if (!loading && rpcError) {
+    return (
+      <div className="max-w-xl mx-auto px-4 py-12 flex flex-col items-center gap-4">
+        <p className="text-sm font-semibold" style={{ color: 'var(--ink)' }}>
+          Couldn&apos;t reach the Arc RPC — history unavailable
+        </p>
+        <p className="text-xs text-center" style={{ color: 'var(--muted)' }}>
+          Set <code className="mono">VITE_SPLIT_RPC_URL</code> to an alternative endpoint, or retry.
+        </p>
+        <button
+          onClick={retry}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--ink-2)' }}
+        >
+          <RefreshCw className="size-4" /> Retry
+        </button>
+      </div>
+    )
+  }
+
+  if (!loading && !event) {
     return (
       <div className="max-w-xl mx-auto px-4 py-12 flex flex-col items-center gap-4">
         <p className="text-sm" style={{ color: 'var(--subtle)' }}>Distribution #{id} not found.</p>
@@ -61,6 +93,9 @@ export default function Receipt() {
       </div>
     )
   }
+
+  // Narrow type — we only reach here when event is non-null
+  if (!event) return null
 
   return (
     <div className="max-w-xl mx-auto px-4 py-8 flex flex-col gap-5">

@@ -1,7 +1,7 @@
 import { useAccount, useReadContract } from 'wagmi'
 import { erc20Abi } from 'viem'
 import { Link } from 'react-router-dom'
-import { Plus, ArrowUpRight, Activity } from 'lucide-react'
+import { Plus, ArrowUpRight, Activity, RefreshCw } from 'lucide-react'
 import ConnectPrompt from '@/components/ConnectPrompt'
 import ContractNotConfigured from '@/components/ContractNotConfigured'
 import { ACTIVE_NETWORK } from '@/config/networks'
@@ -114,7 +114,7 @@ function UsdcBalanceRow({ address }: { address: string }) {
 }
 
 function RecentDistributions({ address }: { address: string }) {
-  const { events, loading, partial } = useDistributionHistory({ payer: address, limit: 5 })
+  const { events, loading, rpcError, partial, retry } = useDistributionHistory({ payer: address, limit: 5 })
 
   return (
     <section>
@@ -122,16 +122,35 @@ function RecentDistributions({ address }: { address: string }) {
         <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--subtle)' }}>
           Your distributions
         </span>
-        {events.length > 0 && (
-          <Link to={`/activity?payer=${address}`} className="text-xs hover:underline" style={{ color: 'var(--accent)' }}>
-            See all
-          </Link>
-        )}
+        <div className="flex items-center gap-3">
+          {rpcError && (
+            <button
+              onClick={retry}
+              className="flex items-center gap-1 text-xs hover:underline"
+              style={{ color: 'var(--accent)' }}
+            >
+              <RefreshCw className="size-3" /> Retry
+            </button>
+          )}
+          {!rpcError && events.length > 0 && (
+            <Link to={`/activity?payer=${address}`} className="text-xs hover:underline" style={{ color: 'var(--accent)' }}>
+              See all
+            </Link>
+          )}
+        </div>
       </div>
       {loading && (
         <div className="text-sm py-4 text-center" style={{ color: 'var(--subtle)' }}>Loading…</div>
       )}
-      {!loading && events.length === 0 && (
+      {!loading && rpcError && (
+        <div
+          className="rounded-2xl p-4 text-sm text-center"
+          style={{ background: 'var(--surface)', border: '1px solid rgba(239,68,68,0.2)', color: 'var(--muted)' }}
+        >
+          Unavailable — couldn&apos;t reach the Arc RPC
+        </div>
+      )}
+      {!loading && !rpcError && events.length === 0 && (
         <div
           className="rounded-2xl p-4 text-sm text-center"
           style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--subtle)' }}
@@ -139,7 +158,7 @@ function RecentDistributions({ address }: { address: string }) {
           No distributions yet
         </div>
       )}
-      {!loading && events.length > 0 && (
+      {!loading && !rpcError && events.length > 0 && (
         <div className="flex flex-col gap-2">
           {events.map((ev) => (
             <Link
@@ -168,7 +187,7 @@ function RecentDistributions({ address }: { address: string }) {
           ))}
         </div>
       )}
-      {partial && (
+      {!rpcError && partial && (
         <p className="text-xs mt-2 text-center" style={{ color: 'var(--subtle)' }}>
           History may be partial — RPC range limit reached.
         </p>

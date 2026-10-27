@@ -1,11 +1,11 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, CheckCircle2, Search, SplitSquareHorizontal, ShieldCheck } from 'lucide-react'
+import { ArrowRight, CheckCircle2, Percent, SplitSquareHorizontal, ShieldCheck } from 'lucide-react'
 import { SplitMark } from '@/components/Layout'
 
 export default function Landing() {
   const steps = [
     { icon: SplitSquareHorizontal, label: 'Define your recipients', desc: 'Add wallet addresses and labels for each contributor.' },
-    { icon: Search, label: 'Set the percentages', desc: 'Assign basis-point allocations that sum to 100%. Preview exact USDC amounts instantly.' },
+    { icon: Percent, label: 'Set the percentages', desc: 'Assign basis-point allocations that sum to 100%. Preview exact USDC amounts instantly.' },
     { icon: CheckCircle2, label: 'Approve and distribute USDC', desc: 'Approve exactly the required amount, then sign one transaction.' },
     { icon: ShieldCheck, label: 'Verify every payment onchain', desc: 'Every transfer is recorded in a public Distributed event on Arc Testnet.' },
   ]

@@ -9,6 +9,8 @@ interface Options {
 export interface UseDistributionHistoryResult {
   events: DistributionEvent[]
   loading: boolean
+  /** True when the RPC could not be reached (getBlockNumber failed) */
+  rpcError: boolean
   partial: boolean
   /** True when there may be older events not yet loaded */
   hasOlder: boolean
@@ -16,29 +18,39 @@ export interface UseDistributionHistoryResult {
   scannedFrom: bigint
   loadOlder: () => void
   loadingOlder: boolean
+  retry: () => void
 }
 
 export function useDistributionHistory({ payer, limit }: Options = {}): UseDistributionHistoryResult {
   const [events, setEvents] = useState<DistributionEvent[]>([])
   const [loading, setLoading] = useState(true)
+  const [rpcError, setRpcError] = useState(false)
   const [partial, setPartial] = useState(false)
   const [chainHead, setChainHead] = useState(0n)
   const [scannedFrom, setScannedFrom] = useState(0n)
   const [loadingOlder, setLoadingOlder] = useState(false)
+  const [retryToken, setRetryToken] = useState(0)
 
   useEffect(() => {
     let cancelled = false
-    void fetchHistory({ payer }).then((result) => {
+    const run = async () => {
+      const result = await fetchHistory({ payer })
       if (cancelled) return
       const filtered = limit ? result.events.slice(0, limit) : result.events
       setEvents(filtered)
+      setRpcError(result.rpcError)
       setPartial(result.partial)
       setChainHead(result.chainHead)
       setScannedFrom(result.scannedFrom)
       setLoading(false)
-    })
+    }
+    void run()
     return () => { cancelled = true }
-  }, [payer, limit])
+  }, [payer, limit, retryToken])
+
+  const retry = useCallback(() => {
+    setRetryToken((t) => t + 1)
+  }, [])
 
   const loadOlder = useCallback(() => {
     if (loadingOlder) return
@@ -63,9 +75,7 @@ export function useDistributionHistory({ payer, limit }: Options = {}): UseDistr
     })
   }, [scannedFrom, payer, limit, loadingOlder])
 
-  const hasOlder = !loading && scannedFrom > (events[events.length - 1]?.blockNumber ?? scannedFrom)
-    ? false
-    : !loading && scannedFrom > 0n
+  const hasOlder = !loading && !rpcError && scannedFrom > 0n
 
-  return { events, loading, partial, hasOlder, chainHead, scannedFrom, loadOlder, loadingOlder }
+  return { events, loading, rpcError, partial, hasOlder, chainHead, scannedFrom, loadOlder, loadingOlder, retry }
 }

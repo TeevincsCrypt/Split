@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ExternalLink, Filter, Loader2 } from 'lucide-react'
 import ContractNotConfigured from '@/components/ContractNotConfigured'
+import RpcErrorBanner from '@/components/RpcErrorBanner'
 import { ACTIVE_NETWORK } from '@/config/networks'
 import { useDistributionHistory } from '@/hooks/useDistributionHistory'
 import { formatUsdcAmount } from '@/lib/allocation'
@@ -15,7 +16,7 @@ export default function Activity() {
   const configured = Boolean(ACTIVE_NETWORK.distributorAddress)
 
   const {
-    events, loading, partial, hasOlder, chainHead, scannedFrom, loadOlder, loadingOlder,
+    events, loading, rpcError, partial, hasOlder, chainHead, scannedFrom, loadOlder, loadingOlder, retry,
   } = useDistributionHistory({
     payer: configured ? filterPayer || undefined : undefined,
   })
@@ -86,7 +87,9 @@ export default function Activity() {
         <div className="text-sm py-4 text-center" style={{ color: 'var(--subtle)' }}>Loading history…</div>
       )}
 
-      {!loading && events.length === 0 && (
+      {!loading && rpcError && <RpcErrorBanner onRetry={retry} />}
+
+      {!loading && !rpcError && events.length === 0 && (
         <div
           className="rounded-2xl p-8 text-center text-sm"
           style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--subtle)' }}
@@ -95,7 +98,7 @@ export default function Activity() {
         </div>
       )}
 
-      {!loading && events.length > 0 && (
+      {!loading && !rpcError && events.length > 0 && (
         <div className="flex flex-col gap-2">
           {events.map((ev) => (
             <Link
@@ -134,7 +137,7 @@ export default function Activity() {
       )}
 
       {/* Load older button */}
-      {!loading && hasOlder && (
+      {!loading && !rpcError && hasOlder && (
         <button
           onClick={loadOlder}
           disabled={loadingOlder}

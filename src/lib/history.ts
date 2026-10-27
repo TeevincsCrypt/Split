@@ -8,7 +8,7 @@
 import { createPublicClient, http, parseAbiItem, decodeEventLog } from 'viem'
 import { arcTestnet } from 'viem/chains'
 import { arcMainnet } from '@/config'
-import { ACTIVE_NETWORK, ACTIVE_PROXY_CHAIN_KEY } from '@/config/networks'
+import { ACTIVE_NETWORK } from '@/config/networks'
 import { SPLIT_DISTRIBUTOR_ABI } from '@/abi/SplitDistributor'
 
 export interface DistributionEvent {
@@ -29,15 +29,9 @@ const CHUNK_SIZE = 2_000n
 // Default window shown without "Load older" — recent 50,000 blocks (~1–2 days on Arc)
 const INITIAL_WINDOW = 50_000n
 
-// RPC: proxy if available, else public
-const proxyBase: string = (import.meta.env.VITE_RPC_PROXY_BASE_URL as string | undefined) ?? ''
-const proxyToken: string = (import.meta.env.VITE_RPC_PROXY_TOKEN as string | undefined) ?? ''
-const proxyChainsRaw: string = (import.meta.env.VITE_RPC_PROXY_CHAINS as string | undefined) ?? ''
-const proxyChains: string[] = proxyChainsRaw.split(',')
-export const rpcUrl: string =
-  proxyBase && proxyChains.includes(ACTIVE_PROXY_CHAIN_KEY)
-    ? `${proxyBase}/api/rpc/${ACTIVE_PROXY_CHAIN_KEY}?_rpc_token=${proxyToken}`
-    : ACTIVE_NETWORK.rpcUrl
+// Effective RPC URL: VITE_SPLIT_RPC_URL override > Arc Studio proxy > onchain-facts default.
+// Resolution happens in networks.ts; ACTIVE_NETWORK.rpcUrl already holds the right value.
+export const rpcUrl: string = ACTIVE_NETWORK.rpcUrl
 
 const activeChain = ACTIVE_NETWORK.chainId === 5042 ? arcMainnet : arcTestnet
 
@@ -62,6 +56,8 @@ export interface FetchHistoryOptions {
 export interface FetchHistoryResult {
   events: DistributionEvent[]
   partial: boolean
+  /** True when the RPC could not be reached at all (getBlockNumber failed) */
+  rpcError: boolean
   /** Oldest block that was scanned in this call */
   scannedFrom: bigint
   /** Head block at time of scan */
@@ -160,13 +156,13 @@ async function decodeLogs(
  */
 export async function fetchHistory(opts: FetchHistoryOptions = {}): Promise<FetchHistoryResult> {
   const contractAddress = ACTIVE_NETWORK.distributorAddress
-  if (!contractAddress) return { events: [], partial: false, scannedFrom: 0n, chainHead: 0n }
+  if (!contractAddress) return { events: [], partial: false, rpcError: false, scannedFrom: 0n, chainHead: 0n }
 
   let chainHead: bigint
   try {
     chainHead = await publicClient.getBlockNumber()
   } catch {
-    return { events: [], partial: true, scannedFrom: 0n, chainHead: 0n }
+    return { events: [], partial: false, rpcError: true, scannedFrom: 0n, chainHead: 0n }
   }
 
   const deployBlock = ACTIVE_NETWORK.deployBlock
@@ -176,7 +172,7 @@ export async function fetchHistory(opts: FetchHistoryOptions = {}): Promise<Fetc
 
   const { logs, partial } = await scanRange(contractAddress, from, to, opts.payer, opts.onProgress)
   const events = await decodeLogs(logs)
-  return { events, partial, scannedFrom: from, chainHead }
+  return { events, partial, rpcError: false, scannedFrom: from, chainHead }
 }
 
 /**
@@ -189,7 +185,7 @@ export async function fetchOlderHistory(
   onProgress?: (loaded: number, total: number) => void,
 ): Promise<FetchHistoryResult> {
   const contractAddress = ACTIVE_NETWORK.distributorAddress
-  if (!contractAddress) return { events: [], partial: false, scannedFrom: 0n, chainHead: upToBlock }
+  if (!contractAddress) return { events: [], partial: false, rpcError: false, scannedFrom: 0n, chainHead: upToBlock }
 
   let chainHead: bigint
   try {
@@ -199,7 +195,7 @@ export async function fetchOlderHistory(
   }
 
   const deployBlock = ACTIVE_NETWORK.deployBlock
-  if (upToBlock <= deployBlock) return { events: [], partial: false, scannedFrom: deployBlock, chainHead }
+  if (upToBlock <= deployBlock) return { events: [], partial: false, rpcError: false, scannedFrom: deployBlock, chainHead }
 
   // Scan INITIAL_WINDOW blocks older than the current oldest
   const windowSize = INITIAL_WINDOW
@@ -208,24 +204,31 @@ export async function fetchOlderHistory(
 
   const { logs, partial } = await scanRange(contractAddress, from, to, payer, onProgress)
   const events = await decodeLogs(logs)
-  return { events, partial, scannedFrom: from, chainHead }
+  return { events, partial, rpcError: false, scannedFrom: from, chainHead }
+}
+
+export interface FetchEventByIdResult {
+  event: DistributionEvent | null
+  rpcError: boolean
 }
 
 /**
  * Fetch a single distribution by ID using the indexed topic filter.
  * Much faster than a full scan for the Receipt page.
+ * Returns { event: null, rpcError: true } when the RPC cannot be reached.
+ * Returns { event: null, rpcError: false } when the ID was simply not found.
  */
 export async function fetchEventById(
   distributionId: bigint,
-): Promise<DistributionEvent | null> {
+): Promise<FetchEventByIdResult> {
   const contractAddress = ACTIVE_NETWORK.distributorAddress
-  if (!contractAddress) return null
+  if (!contractAddress) return { event: null, rpcError: false }
 
   let chainHead: bigint
   try {
     chainHead = await publicClient.getBlockNumber()
   } catch {
-    return null
+    return { event: null, rpcError: true }
   }
 
   try {
@@ -236,10 +239,10 @@ export async function fetchEventById(
       toBlock: chainHead,
       args: { distributionId },
     })
-    if (logs.length === 0) return null
+    if (logs.length === 0) return { event: null, rpcError: false }
     const events = await decodeLogs(logs)
-    return events[0] ?? null
+    return { event: events[0] ?? null, rpcError: false }
   } catch {
-    return null
+    return { event: null, rpcError: true }
   }
 }

@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAccount } from 'wagmi'
-import ConnectPrompt from '@/components/ConnectPrompt'
 import ContractNotConfigured from '@/components/ContractNotConfigured'
+import ConnectPrompt from '@/components/ConnectPrompt'
 import { ACTIVE_NETWORK } from '@/config/networks'
 import StepEditor from '@/components/create/StepEditor'
 import StepReview from '@/components/create/StepReview'
@@ -42,13 +42,18 @@ export default function CreateSplit() {
   const navigate = useNavigate()
   const [step, setStep] = useState<CreateStep>('editor')
   const [draft, setDraft] = useState<SplitDraft>(EMPTY_DRAFT)
+
   if (!ACTIVE_NETWORK.distributorAddress) return <ContractNotConfigured />
-  if (!isConnected) return <ConnectPrompt message="Connect your wallet to create a split." />
 
   const stepIdx = STEP_ORDER.indexOf(step)
 
   function handleDistributed(id: bigint) {
     void navigate(`/d/${id}`)
+  }
+
+  // Gate: wallet required to move past the editor
+  function handleEditorNext() {
+    setStep('review')
   }
 
   return (
@@ -94,10 +99,16 @@ export default function CreateSplit() {
         <StepEditor
           draft={draft}
           onChange={setDraft}
-          onNext={() => setStep('review')}
+          onNext={handleEditorNext}
         />
       )}
-      {step === 'review' && (
+
+      {/* Wallet gate: shown at Review step when not connected */}
+      {step === 'review' && !isConnected && (
+        <ConnectPrompt message="Connect your wallet to review and sign the distribution." onBack={() => setStep('editor')} />
+      )}
+
+      {step === 'review' && isConnected && (
         <StepReview
           draft={draft}
           onBack={() => setStep('editor')}

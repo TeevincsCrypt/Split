@@ -75,6 +75,7 @@ bun run dev
 | `VITE_SPLIT_NETWORK` | `testnet` or `mainnet`. Any other value is a configuration error. |
 | `VITE_SPLIT_DISTRIBUTOR_ADDRESS` | Deployed SplitDistributor on that network |
 | `VITE_SPLIT_DEPLOY_BLOCK` | Block to start reading events from |
+| `VITE_SPLIT_RPC_URL` | Optional https RPC override (e.g. a provider endpoint if the public RPC is restricted) |
 
 These are public values; no secrets belong in `.env` for the frontend.
 

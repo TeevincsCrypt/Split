@@ -9,6 +9,7 @@ import { requireChain, getUsdc } from '@/onchain-facts'
 export interface NetworkConfig {
   chainId: number
   name: string
+  /** Effective RPC URL: VITE_SPLIT_RPC_URL override → proxy → onchain-facts default */
   rpcUrl: string
   explorerBase: string
   usdcAddress: `0x${string}`
@@ -41,6 +42,41 @@ function buildNetworkConfig(chainId: number): Omit<NetworkConfig, 'distributorAd
 
 export const ARC_TESTNET_BASE = buildNetworkConfig(ARC_TESTNET_CHAIN_ID)
 export const ARC_MAINNET_BASE = buildNetworkConfig(ARC_MAINNET_CHAIN_ID)
+
+/**
+ * Resolve the effective RPC URL for the active network.
+ * Priority: VITE_SPLIT_RPC_URL (custom override) > Arc Studio RPC proxy > onchain-facts default.
+ * Returns { url, configError } — configError is set when VITE_SPLIT_RPC_URL is present but invalid.
+ */
+function resolveRpcUrl(defaultUrl: string): { url: string; configError: string | null } {
+  const proxyBase: string = (import.meta.env.VITE_RPC_PROXY_BASE_URL as string | undefined) ?? ''
+  const proxyToken: string = (import.meta.env.VITE_RPC_PROXY_TOKEN as string | undefined) ?? ''
+  const proxyChainsRaw: string = (import.meta.env.VITE_RPC_PROXY_CHAINS as string | undefined) ?? ''
+
+  // Custom override takes precedence — must be an https URL
+  const customRpc: string = (import.meta.env.VITE_SPLIT_RPC_URL as string | undefined)?.trim() ?? ''
+  if (customRpc) {
+    if (!customRpc.startsWith('https://')) {
+      return {
+        url: defaultUrl,
+        configError: `VITE_SPLIT_RPC_URL "${customRpc}" must be an https URL.`,
+      }
+    }
+    return { url: customRpc, configError: null }
+  }
+
+  // Arc Studio proxy (server-side env — only present inside Arc Studio)
+  const proxyChainKey = defaultUrl.includes('testnet') || defaultUrl.includes('5042002') ? 'Arc_Testnet' : 'Arc'
+  const proxyChains = proxyChainsRaw.split(',').map((s) => s.trim())
+  if (proxyBase && proxyChains.includes(proxyChainKey) && proxyToken) {
+    return {
+      url: `${proxyBase}/api/rpc/${proxyChainKey}?_rpc_token=${proxyToken}`,
+      configError: null,
+    }
+  }
+
+  return { url: defaultUrl, configError: null }
+}
 
 function resolveActiveNetwork(): NetworkConfig {
   const networkEnv: string = (import.meta.env.VITE_SPLIT_NETWORK as string | undefined) ?? ''
@@ -81,8 +117,21 @@ function resolveActiveNetwork(): NetworkConfig {
     }
   }
 
+  // Resolve effective RPC URL (custom override > proxy > default)
+  const { url: rpcUrl, configError: rpcError } = resolveRpcUrl(base.rpcUrl)
+  if (rpcError) {
+    return {
+      ...base,
+      rpcUrl,
+      distributorAddress: null,
+      deployBlock: 0n,
+      configError: rpcError,
+    }
+  }
+
   return {
     ...base,
+    rpcUrl,
     distributorAddress: trimmedAddress ? (trimmedAddress as `0x${string}`) : null,
     deployBlock,
     configError: null,

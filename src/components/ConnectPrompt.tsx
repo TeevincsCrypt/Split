@@ -1,7 +1,13 @@
 import { ConnectKitButton } from 'connectkit'
-import { Wallet } from 'lucide-react'
+import { Wallet, ArrowLeft } from 'lucide-react'
 
-export default function ConnectPrompt({ message = 'Connect your wallet to continue.' }: { message?: string }) {
+interface Props {
+  message?: string
+  /** When set, shows a back button alongside the connect button */
+  onBack?: () => void
+}
+
+export default function ConnectPrompt({ message = 'Connect your wallet to continue.', onBack }: Props) {
   return (
     <div className="flex flex-col items-center justify-center gap-4 py-16 px-4 text-center">
       <div
@@ -13,7 +19,18 @@ export default function ConnectPrompt({ message = 'Connect your wallet to contin
       <p className="text-sm max-w-xs" style={{ color: 'var(--muted)' }}>
         {message}
       </p>
-      <ConnectKitButton />
+      <div className="flex items-center gap-3">
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-colors"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--ink-2)' }}
+          >
+            <ArrowLeft className="size-4" /> Back
+          </button>
+        )}
+        <ConnectKitButton />
+      </div>
     </div>
   )
 }
