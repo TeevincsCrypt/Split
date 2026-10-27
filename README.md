@@ -34,13 +34,16 @@ bun install
 
 ### Environment variables
 
-| Variable | Purpose | Required outside Arc Studio |
+Copy `.env.example` to `.env` and adjust as needed.
+
+| Variable | Purpose | Required |
 |---|---|---|
-| `RPC_PROXY_BASE_URL` | Arc Studio RPC proxy base URL | Optional (falls back to public RPC) |
+| `VITE_SPLIT_NETWORK` | `"testnet"` or `"mainnet"` | Yes (default: `testnet`) |
+| `VITE_SPLIT_DISTRIBUTOR_ADDRESS` | Deployed `SplitDistributor` address | Yes |
+| `VITE_SPLIT_DEPLOY_BLOCK` | Deploy block for event indexing | Yes |
+| `RPC_PROXY_BASE_URL` | Arc Studio RPC proxy (optional outside Arc Studio) | Optional |
 | `RPC_PROXY_TOKEN` | Arc Studio RPC proxy auth token | Optional |
 | `RPC_PROXY_CHAINS` | Comma-separated proxy chain keys | Optional |
-
-No secrets are required to run the frontend or tests.
 
 ### Run (frontend dev server)
 
@@ -63,6 +66,14 @@ bun run contracts:test
 ```
 
 40 tests, 0 failed. Includes fuzz tests and a gas benchmark at MAX_RECIPIENTS (50 recipients = 1,817,800 gas).
+
+### Test (frontend unit tests)
+
+```bash
+bun run test
+```
+
+23 vitest tests for `src/lib/allocation.ts` — pure bigint math, percent/BPS conversions, formatting.
 
 ---
 

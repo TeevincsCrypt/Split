@@ -1,5 +1,7 @@
 This turn: build the Split web app on top of the SplitDistributor contract you deployed to Arc Testnet in the previous turn. Re-read context/docs/SPEC.md section 2. Do not change the contract.
 
+Deployed testnet contract (from your previous turn): SplitDistributor at 0x43a159af83f4c836940e2e74c8a29ae677c39498, deploy tx 0xa01d2a87258d79122d210787029bd968b18f874cc11dd0d2f978e23d53f595dd. Read the deploy block number from that receipt and use it as VITE_SPLIT_DEPLOY_BLOCK in .env.example. Also set the sandbox .env so the live preview runs on Arc Testnet against this contract.
+
 Product: Split — "One payment. Every contributor. Done." Real USDC payouts to many recipients in one atomic onchain transaction.
 
 Stack: the sandbox's Vite + React + TypeScript + Tailwind, wagmi v2 + viem, injected wallets (MetaMask/Rabby). Client-side routing. No backend, no database — the chain is the source of truth.

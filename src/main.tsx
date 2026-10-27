@@ -12,6 +12,8 @@
 
 import './tracing'
 import './console-capture'
+import { installShareSync } from './lib/share'
+installShareSync()
 
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'

@@ -36,11 +36,25 @@ Split lets teams, DAOs, freelancers, and businesses distribute USDC to multiple 
 
 ## Key Files
 
-- `src/App.tsx` - Main application logic
+- `src/App.tsx` - BrowserRouter root wiring all routes
+- `src/pages/` - Landing, Dashboard, CreateSplit, Receipt (`/d/:id`), Activity, HowItWorks
+- `src/components/create/` - 4 create-flow steps: StepEditor, StepReview, StepApprove, StepDistribute
+- `src/components/` - Layout (nav + footer), WrongNetworkBanner, ConnectPrompt, ContractNotConfigured
+- `src/config/networks.ts` - Env-driven network config. Reads VITE_SPLIT_NETWORK / VITE_SPLIT_DISTRIBUTOR_ADDRESS / VITE_SPLIT_DEPLOY_BLOCK
+- `src/abi/SplitDistributor.ts` - Contract ABI
+- `src/lib/allocation.ts` - Pure bigint BPS math (vitest tested)
+- `src/lib/validation.ts` - Client-side input validation
+- `src/lib/history.ts` - Chunked getLogs reader (2,000 blocks/call, from deploy block)
+- `src/lib/share.ts` - getShareBase / buildShareLink / installShareSync
+- `src/lib/utils.ts` - cn, formatAddress, formatTimestamp, explorer link builders
+- `src/hooks/useDistributionHistory.ts` - React hook over fetchHistory
 - `contracts/SplitDistributor.sol` - Core split distribution contract
 - `contracts/test/` - Foundry test suite (40 tests, max preset)
 - `docs/splitdistributor-report.md` - Full security review + test report
-- `src/config.ts` - wagmi config (chains, connectors, transports)
+
+## Deploy block
+
+Arc Testnet deploy block: **69249404** (from tx receipt `0xa01d2a87258d79122d210787029bd968b18f874cc11dd0d2f978e23d53f595dd`). Set as `VITE_SPLIT_DEPLOY_BLOCK` in `.env` and `.env.example`.
 
 ## Security review notes
 
