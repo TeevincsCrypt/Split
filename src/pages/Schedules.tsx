@@ -144,10 +144,11 @@ function CancelDialog({ schedule, onClose, onCancelled }: CancelDialogProps) {
 }
 
 function ScheduleCard({ schedule, onAction }: { schedule: ScheduleWithState; onAction: () => void }) {
+  // Per-card load error is shown before any hooks run — but hooks must come first
   const { chainId: cardChainId } = useAccount()
   const cardWrongChain = !!cardChainId && cardChainId !== ACTIVE_NETWORK.chainId
   const [nowSec] = useState(() => BigInt(Math.floor(Date.now() / 1000)))
-  const status = getStatus(schedule, nowSec)
+  const status = schedule.loadError ? 'upcoming' as const : getStatus(schedule, nowSec)
   const ss = STATUS_STYLE[status]
   const [cancelOpen, setCancelOpen] = useState(false)
   const [executing, setExecuting] = useState(false)
@@ -173,6 +174,21 @@ function ScheduleCard({ schedule, onAction }: { schedule: ScheduleWithState; onA
     if (r.ok) onAction()
     else setExecuteErr(r.error)
     setExecuting(false)
+  }
+
+  // Per-card error — show minimal card after hooks
+  if (schedule.loadError) {
+    return (
+      <div className="card p-4 flex flex-col gap-2" style={{ opacity: 0.7 }}>
+        <span className="text-xs font-semibold" style={{ color: 'var(--subtle)' }}>
+          Schedule #{schedule.id.toString()}
+        </span>
+        <p className="text-xs" style={{ color: 'var(--danger)' }}>Couldn't load — RPC read failed.</p>
+        <Link to={`/s/${schedule.id}`} className="text-xs font-semibold" style={{ color: 'var(--accent)' }}>
+          View details →
+        </Link>
+      </div>
+    )
   }
 
   return (

@@ -1,12 +1,43 @@
 /**
- * On-chain event fetching for ScheduledSplit.
- * Mirrors the structure of history.ts but for ScheduledSplit events.
+ * On-chain data fetching for ScheduledSplit.
+ *
+ * Strategy (fixes RPC "range too large" failures):
+ *
+ * SCHEDULE LIST:  scheduleCount() + getSchedule(id) contract reads via wagmi
+ *                 publicClient — NO getLogs for the list at all.
+ *
+ * EVENT HISTORY:  getLogs in 2,000-block chunks newest-first, indexed by `id`,
+ *                 non-fatal: callers show live state even when this fails.
+ *
+ * Both layers use viem fallback() over ACTIVE_NETWORK.rpcUrls, matching
+ * src/lib/history.ts.
  */
-import { createPublicClient, http, parseAbi, type Address } from 'viem'
+import {
+  createPublicClient,
+  fallback,
+  http,
+  parseAbi,
+  type Address,
+  type PublicClient,
+} from 'viem'
+import { arcTestnet } from 'viem/chains'
+import { arcMainnet } from '@/config'
 import { ACTIVE_NETWORK } from '@/config/networks'
 
 // ---------------------------------------------------------------------------
-// Minimal event ABIs (typed for getLogs)
+// Shared public client with fallback transport — mirrors history.ts
+// ---------------------------------------------------------------------------
+const _activeChain = ACTIVE_NETWORK.chainId === 5042 ? arcMainnet : arcTestnet
+
+export const schedulePublicClient: PublicClient = createPublicClient({
+  chain: _activeChain,
+  transport: fallback(
+    ACTIVE_NETWORK.rpcUrls.map((url) => http(url, { timeout: 10_000, retryCount: 1 })),
+  ),
+})
+
+// ---------------------------------------------------------------------------
+// Minimal event ABIs (only for getLogs — the list path uses readContract)
 // ---------------------------------------------------------------------------
 const SCHEDULE_CREATED_EVENT = parseAbi([
   'event ScheduleCreated(uint256 indexed id, address indexed payer, bytes32 indexed nameHash, string name, uint96 amountPerPayment, uint64[] dueTimes, address[] recipients, uint16[] bps)',
@@ -32,7 +63,7 @@ export interface ScheduleCreatedEvent {
   recipients: Address[]
   bps: number[]
   blockNumber: bigint
-  txHash: `0x${string}`
+  txHash: `0x${string}` | null
 }
 
 export interface ScheduleExecutedEvent {
@@ -52,131 +83,236 @@ export interface ScheduleCancelledEvent {
   txHash: `0x${string}`
 }
 
-export interface FetchScheduleHistoryResult {
-  created: ScheduleCreatedEvent[]
-  rpcError: boolean
-  /** True when the initial window does not reach the deploy block */
-  hasOlder: boolean
-  scannedFrom: bigint
-  chainHead: bigint
+// ---------------------------------------------------------------------------
+// scheduleCount() — used by useScheduleHistory to enumerate ids
+// ---------------------------------------------------------------------------
+export async function fetchScheduleCount(
+  contractAddress: Address,
+): Promise<{ count: bigint; rpcError: boolean }> {
+  try {
+    const count = await schedulePublicClient.readContract({
+      address: contractAddress,
+      abi: parseAbi(['function scheduleCount() external view returns (uint256)']),
+      functionName: 'scheduleCount',
+    })
+    return { count: count, rpcError: false }
+  } catch {
+    return { count: 0n, rpcError: true }
+  }
 }
 
 // ---------------------------------------------------------------------------
-// Public client (mirrors history.ts pattern)
+// fetchScheduleState — reads getSchedule + nextDueTime + remainingDeposit for one id
 // ---------------------------------------------------------------------------
-function makeClient() {
-  return createPublicClient({
-    transport: http(ACTIVE_NETWORK.rpcUrl, { retryCount: 2, retryDelay: 800 }),
-  })
-}
 
-const CHUNK = 2_000n
-const INITIAL_WINDOW = 50_000n
+// Inline ABI fragment for the three view functions we need
+const SCHEDULE_VIEW_ABI = parseAbi([
+  'function getSchedule(uint256 id) external view returns (uint256 executed, bool cancelled, address payer, bytes32 nameHash, string name, uint96 amountPerPayment, uint64[] dueTimes, address[] recipients, uint16[] bps)',
+  'function nextDueTime(uint256 id) external view returns (uint64)',
+  'function remainingDeposit(uint256 id) external view returns (uint256)',
+])
+
+export interface ScheduleState {
+  id: bigint
+  payer: Address
+  name: string
+  amountPerPayment: bigint
+  dueTimes: bigint[]
+  recipients: Address[]
+  bps: number[]
+  executed: number
+  cancelled: boolean
+  nextDueTime: bigint
+  remainingDeposit: bigint
+}
 
 /**
- * Fetch ScheduleCreated events for a payer, newest-first window.
+ * Read live state for one schedule directly from the contract.
+ * Returns null on error so the caller can show a per-card error.
  */
-export async function fetchScheduleHistory(
+export async function fetchScheduleState(
   contractAddress: Address,
-  deployBlock: bigint,
-  filterPayer?: Address,
-): Promise<FetchScheduleHistoryResult> {
-  const client = makeClient()
-  let chainHead: bigint
+  id: bigint,
+): Promise<ScheduleState | null> {
   try {
-    chainHead = await client.getBlockNumber()
-  } catch {
-    return { created: [], rpcError: true, hasOlder: false, scannedFrom: 0n, chainHead: 0n }
-  }
+    const [raw, ndt, rd] = await Promise.all([
+      schedulePublicClient.readContract({
+        address: contractAddress,
+        abi: SCHEDULE_VIEW_ABI,
+        functionName: 'getSchedule',
+        args: [id],
+      }),
+      schedulePublicClient.readContract({
+        address: contractAddress,
+        abi: SCHEDULE_VIEW_ABI,
+        functionName: 'nextDueTime',
+        args: [id],
+      }),
+      schedulePublicClient.readContract({
+        address: contractAddress,
+        abi: SCHEDULE_VIEW_ABI,
+        functionName: 'remainingDeposit',
+        args: [id],
+      }),
+    ])
 
-  const windowStart = chainHead > INITIAL_WINDOW ? chainHead - INITIAL_WINDOW : deployBlock
-  const from = windowStart > deployBlock ? windowStart : deployBlock
+    // getSchedule returns a named-field tuple; cast via unknown to satisfy TS
+    const s = raw as unknown as {
+      executed: bigint | number
+      cancelled: boolean
+      payer: Address
+      name: string
+      amountPerPayment: bigint
+      dueTimes: readonly bigint[]
+      recipients: readonly Address[]
+      bps: readonly number[]
+    }
 
-  try {
-    const logs = await client.getLogs({
-      address: contractAddress,
-      event: SCHEDULE_CREATED_EVENT[0],
-      args: filterPayer ? { payer: filterPayer } : undefined,
-      fromBlock: from,
-      toBlock: chainHead,
-    })
-    const created: ScheduleCreatedEvent[] = logs
-      .reverse()
-      .map((log) => ({
-        id: log.args.id!,
-        payer: log.args.payer!,
-        name: log.args.name!,
-        amountPerPayment: BigInt(log.args.amountPerPayment!),
-        dueTimes: (log.args.dueTimes ?? []).map(BigInt),
-        recipients: (log.args.recipients ?? []) as Address[],
-        bps: (log.args.bps ?? []).map(Number),
-        blockNumber: log.blockNumber ?? 0n,
-        txHash: log.transactionHash,
-      }))
     return {
-      created,
-      rpcError: false,
-      hasOlder: from > deployBlock,
-      scannedFrom: from,
-      chainHead,
+      id,
+      payer: s.payer,
+      name: s.name,
+      amountPerPayment: BigInt(s.amountPerPayment),
+      dueTimes: [...s.dueTimes].map(BigInt),
+      recipients: [...s.recipients] as Address[],
+      bps: [...s.bps].map(Number),
+      executed: Number(s.executed),
+      cancelled: s.cancelled,
+      nextDueTime: BigInt(ndt),
+      remainingDeposit: BigInt(rd),
     }
   } catch {
-    return { created: [], rpcError: true, hasOlder: false, scannedFrom: from, chainHead }
+    return null
   }
 }
 
+// ---------------------------------------------------------------------------
+// Event history — non-fatal chunked getLogs, newest-first, 2,000 blocks/chunk
+// ---------------------------------------------------------------------------
+const CHUNK = 2_000n
+
 /**
- * Fetch executed payments for a schedule id.
+ * Fetch executed payment events for a schedule id, newest-first, 2k-block chunks.
+ * Never throws — returns [] on any error.
  */
 export async function fetchExecutedEvents(
   contractAddress: Address,
   deployBlock: bigint,
   scheduleId: bigint,
 ): Promise<ScheduleExecutedEvent[]> {
-  const client = makeClient()
-  let chainHead: bigint
-  try { chainHead = await client.getBlockNumber() }
+  let head: bigint
+  try { head = await schedulePublicClient.getBlockNumber() }
   catch { return [] }
 
-  try {
-    const logs = await client.getLogs({
-      address: contractAddress,
-      event: SCHEDULE_EXECUTED_EVENT[0],
-      args: { id: scheduleId },
-      fromBlock: deployBlock,
-      toBlock: chainHead,
-    })
-    return logs.map((log) => ({
-      id: log.args.id!,
-      index: Number(log.args.index ?? 0),
-      executor: log.args.executor!,
-      dueTime: BigInt(log.args.dueTime ?? 0),
-      amounts: (log.args.amounts ?? []).map(BigInt),
-      blockNumber: log.blockNumber ?? 0n,
-      txHash: log.transactionHash,
-    }))
-  } catch { return [] }
+  const results: ScheduleExecutedEvent[] = []
+  let to = head
+  while (to >= deployBlock) {
+    const from = to > CHUNK ? to - CHUNK : deployBlock
+    try {
+      const logs = await schedulePublicClient.getLogs({
+        address: contractAddress,
+        event: SCHEDULE_EXECUTED_EVENT[0],
+        args: { id: scheduleId },
+        fromBlock: from,
+        toBlock: to,
+      })
+      for (const log of logs.reverse()) {
+        results.push({
+          id: log.args.id!,
+          index: Number(log.args.index ?? 0),
+          executor: log.args.executor!,
+          dueTime: BigInt(log.args.dueTime ?? 0),
+          amounts: (log.args.amounts ?? []).map(BigInt),
+          blockNumber: log.blockNumber ?? 0n,
+          txHash: log.transactionHash,
+        })
+      }
+    } catch { /* chunk failed — skip */ }
+    if (from <= deployBlock) break
+    to = from - 1n
+  }
+  return results
 }
 
 /**
- * Fetch the ScheduleCreated event for a single id (used by /s/:id page).
+ * Fetch the ScheduleCancelled event for a schedule id (if any), chunked.
+ * Never throws — returns null on any error.
+ */
+export async function fetchCancelledEvent(
+  contractAddress: Address,
+  deployBlock: bigint,
+  scheduleId: bigint,
+): Promise<ScheduleCancelledEvent | null> {
+  let head: bigint
+  try { head = await schedulePublicClient.getBlockNumber() }
+  catch { return null }
+
+  let to = head
+  while (to >= deployBlock) {
+    const from = to > CHUNK ? to - CHUNK : deployBlock
+    try {
+      const logs = await schedulePublicClient.getLogs({
+        address: contractAddress,
+        event: SCHEDULE_CANCELLED_EVENT[0],
+        args: { id: scheduleId },
+        fromBlock: from,
+        toBlock: to,
+      })
+      if (logs.length > 0) {
+        const log = logs[logs.length - 1]
+        return {
+          id: log.args.id!,
+          refund: BigInt(log.args.refund ?? 0),
+          blockNumber: log.blockNumber ?? 0n,
+          txHash: log.transactionHash,
+        }
+      }
+    } catch { /* chunk failed — skip */ }
+    if (from <= deployBlock) break
+    to = from - 1n
+  }
+  return null
+}
+
+/**
+ * Fetch ScheduleCreated event for a single id via chunked getLogs.
+ * Used by /s/:id to get creation metadata (name, recipients, dueTimes).
+ * Returns null event (non-fatal) if not found or RPC fails.
  */
 export async function fetchScheduleById(
   contractAddress: Address,
   deployBlock: bigint,
   scheduleId: bigint,
 ): Promise<{ event: ScheduleCreatedEvent | null; rpcError: boolean }> {
-  const client = makeClient()
-  let chainHead: bigint
-  try { chainHead = await client.getBlockNumber() }
+  // First try: read directly from contract (much faster, no getLogs)
+  const state = await fetchScheduleState(contractAddress, scheduleId)
+  if (state) {
+    return {
+      event: {
+        id: state.id,
+        payer: state.payer,
+        name: state.name,
+        amountPerPayment: state.amountPerPayment,
+        dueTimes: state.dueTimes,
+        recipients: state.recipients,
+        bps: state.bps,
+        blockNumber: 0n,  // not available from readContract
+        txHash: null,
+      },
+      rpcError: false,
+    }
+  }
+
+  // State read failed — try getLogs as fallback (slower but gives txHash)
+  let head: bigint
+  try { head = await schedulePublicClient.getBlockNumber() }
   catch { return { event: null, rpcError: true } }
 
-  try {
-    // Scan in chunks from deploy block forward
-    let from = deployBlock
-    while (from <= chainHead) {
-      const to = from + CHUNK > chainHead ? chainHead : from + CHUNK
-      const logs = await client.getLogs({
+  let to = head
+  while (to >= deployBlock) {
+    const from = to > CHUNK ? to - CHUNK : deployBlock
+    try {
+      const logs = await schedulePublicClient.getLogs({
         address: contractAddress,
         event: SCHEDULE_CREATED_EVENT[0],
         args: { id: scheduleId },
@@ -200,43 +336,9 @@ export async function fetchScheduleById(
           rpcError: false,
         }
       }
-      if (to >= chainHead) break
-      from = to + 1n
-    }
-    return { event: null, rpcError: false }
-  } catch {
-    return { event: null, rpcError: true }
+    } catch { /* chunk failed */ }
+    if (from <= deployBlock) break
+    to = from - 1n
   }
-}
-
-/**
- * Fetch the ScheduleCancelled event for a schedule id (if any).
- */
-export async function fetchCancelledEvent(
-  contractAddress: Address,
-  deployBlock: bigint,
-  scheduleId: bigint,
-): Promise<ScheduleCancelledEvent | null> {
-  const client = makeClient()
-  let chainHead: bigint
-  try { chainHead = await client.getBlockNumber() }
-  catch { return null }
-
-  try {
-    const logs = await client.getLogs({
-      address: contractAddress,
-      event: SCHEDULE_CANCELLED_EVENT[0],
-      args: { id: scheduleId },
-      fromBlock: deployBlock,
-      toBlock: chainHead,
-    })
-    if (logs.length === 0) return null
-    const log = logs[0]
-    return {
-      id: log.args.id!,
-      refund: BigInt(log.args.refund ?? 0),
-      blockNumber: log.blockNumber ?? 0n,
-      txHash: log.transactionHash,
-    }
-  } catch { return null }
+  return { event: null, rpcError: false }
 }

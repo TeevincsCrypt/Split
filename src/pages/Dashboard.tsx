@@ -243,13 +243,15 @@ function UpcomingPayments({ address: _address }: { address: string }) {
   const [now] = useState(() => BigInt(Math.floor(Date.now() / 1000)))
 
   const upcoming = selectUpcomingSchedules(
-    schedules.map((s) => ({
-      id: s.id,
-      nextDueTime: s.nextDueTime,
-      cancelled: s.cancelled,
-      executed: s.executed,
-      totalPayments: s.dueTimes.length,
-    })),
+    schedules
+      .filter((s) => !s.loadError)
+      .map((s) => ({
+        id: s.id,
+        nextDueTime: s.nextDueTime,
+        cancelled: s.cancelled,
+        executed: s.executed,
+        totalPayments: s.dueTimes.length,
+      })),
     now,
   ).slice(0, 5)
 
