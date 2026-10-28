@@ -1,0 +1,9 @@
+{
+  "name": "split-keeper",
+  "private": true,
+  "type": "module",
+  "description": "Minimal dependencies for the keeper bot (scripts/keeper.ts) so CI installs one package instead of the whole app.",
+  "dependencies": {
+    "viem": "2.57.5"
+  }
+}

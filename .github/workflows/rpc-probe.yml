@@ -1,0 +1,27 @@
+name: RPC probe
+
+# Manual diagnostic: measures what the public Arc RPC endpoints accept for eth_getLogs
+# (range limits, latency) and times a full Distributed-event history scan, so the app's
+# history loading is tuned to real limits. Read-only; uses no secrets.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+      - name: Install
+        working-directory: scripts
+        timeout-minutes: 2
+        run: bun install --frozen-lockfile
+      - name: Probe
+        timeout-minutes: 5
+        run: bun run scripts/rpc-probe.ts

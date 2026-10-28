@@ -33,7 +33,8 @@ jobs:
   run-keeper:
     name: Execute due payments
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # A payment run takes ~15 s; fail fast so a stuck run never blocks the next minute's run.
+    timeout-minutes: 4
 
     steps:
       - name: Checkout
@@ -45,10 +46,15 @@ jobs:
           # Pin to the exact Bun version this repo was developed against
           bun-version-file: .bun-version
 
-      - name: Install dependencies
+      # The keeper needs only viem: install scripts/package.json (13 packages),
+      # not the whole web app (~900 packages), so a slow registry can't delay payday.
+      - name: Install keeper dependencies
+        working-directory: scripts
+        timeout-minutes: 2
         run: bun install --frozen-lockfile
 
       - name: Run keeper
+        timeout-minutes: 2
         env:
           KEEPER_PRIVATE_KEY:           ${{ secrets.KEEPER_PRIVATE_KEY }}
           SPLIT_NETWORK:                ${{ vars.SPLIT_NETWORK }}
