@@ -1,0 +1,32 @@
+name: Verify mainnet txs
+
+# Read-only: looks up Arc mainnet transactions and checks deployed Split contracts
+# against the embedded Arc Studio artifacts. Uses no secrets and sends nothing.
+on:
+  workflow_dispatch:
+    inputs:
+      hashes:
+        description: Transaction hashes (space or comma separated)
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+      - name: Install
+        working-directory: scripts
+        timeout-minutes: 2
+        run: bun install --frozen-lockfile
+      - name: Verify
+        timeout-minutes: 2
+        env:
+          TX_HASHES: ${{ inputs.hashes }}
+        run: bun run scripts/verify-mainnet-txs.ts
