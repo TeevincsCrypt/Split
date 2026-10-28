@@ -22,6 +22,11 @@ import {
   SPLIT_DISTRIBUTOR_BYTECODE,
   SPLIT_DISTRIBUTOR_BYTECODE_KECCAK256,
 } from '@/abi/SplitDistributorArtifact'
+import {
+  SCHEDULED_SPLIT_ABI_JSON,
+  SCHEDULED_SPLIT_BYTECODE,
+  SCHEDULED_SPLIT_BYTECODE_KECCAK256,
+} from '@/abi/ScheduledSplitArtifact'
 import { formatGasAmount, Amount } from '@/onchain-money'
 import { buildTxExplorerUrl, buildAddressExplorerUrl } from '@/onchain-facts'
 
@@ -29,6 +34,32 @@ const CHAIN_ID = ACTIVE_NETWORK.chainId
 const USDC_ADDRESS = ACTIVE_NETWORK.usdcAddress
 const IS_MAINNET = !ACTIVE_NETWORK.isTestnet
 const RECEIPT_TIMEOUT_MS = 120_000
+
+/** Both contracts take the USDC address as their only constructor arg and expose usdc(), MAX_RECIPIENTS() and a counter. */
+const TARGETS = {
+  distributor: {
+    label: 'SplitDistributor',
+    blurb: 'Pay now: one transaction pays every recipient.',
+    abi: SPLIT_DISTRIBUTOR_ABI_JSON,
+    bytecode: SPLIT_DISTRIBUTOR_BYTECODE,
+    keccak: SPLIT_DISTRIBUTOR_BYTECODE_KECCAK256,
+    counter: 'distributionCount',
+    envAddress: 'VITE_SPLIT_DISTRIBUTOR_ADDRESS',
+    envBlock: 'VITE_SPLIT_DEPLOY_BLOCK',
+  },
+  scheduled: {
+    label: 'ScheduledSplit',
+    blurb: 'Scheduled payouts: deposits released on their due dates.',
+    abi: SCHEDULED_SPLIT_ABI_JSON,
+    bytecode: SCHEDULED_SPLIT_BYTECODE,
+    keccak: SCHEDULED_SPLIT_BYTECODE_KECCAK256,
+    counter: 'scheduleCount',
+    envAddress: 'VITE_SCHEDULED_SPLIT_ADDRESS',
+    envBlock: 'VITE_SCHEDULED_SPLIT_DEPLOY_BLOCK',
+  },
+} as const
+type TargetKey = keyof typeof TARGETS
+type Target = (typeof TARGETS)[TargetKey]
 
 type DeployState =
   | 'idle'
@@ -101,7 +132,7 @@ function EnvLine({ name, value }: { name: string; value: string }) {
   )
 }
 
-export default function Deploy() {
+function DeployTarget({ target }: { target: Target }) {
   const { address, chain: walletChain, isConnected } = useAccount()
   const { switchChain } = useSwitchChain()
   const { data: walletClient } = useWalletClient({ chainId: CHAIN_ID })
@@ -147,7 +178,7 @@ export default function Deploy() {
       try {
         const gas = await publicClient.estimateGas({
           account: address,
-          data: SPLIT_DISTRIBUTOR_BYTECODE,
+          data: target.bytecode,
         })
         setGasEstimate(gas)
       } catch {
@@ -158,7 +189,7 @@ export default function Deploy() {
       }
     }
     void run()
-  }, [isConnected, isWrongChain, address, publicClient])
+  }, [isConnected, isWrongChain, address, publicClient, target.bytecode])
 
   async function handleDeploy() {
     if (!walletClient || !publicClient || !address) return
@@ -168,8 +199,8 @@ export default function Deploy() {
     let hash: `0x${string}`
     try {
       hash = await walletClient.deployContract({
-        abi: SPLIT_DISTRIBUTOR_ABI_JSON,
-        bytecode: SPLIT_DISTRIBUTOR_BYTECODE,
+        abi: target.abi,
+        bytecode: target.bytecode,
         args: [USDC_ADDRESS],
         account: address,
         chain: activeArcChain,
@@ -232,7 +263,7 @@ export default function Deploy() {
     try {
       const usdcResult = await publicClient.readContract({
         address: deployed,
-        abi: SPLIT_DISTRIBUTOR_ABI_JSON,
+        abi: target.abi as typeof SPLIT_DISTRIBUTOR_ABI_JSON,
         functionName: 'usdc',
       })
       v.usdcMatch = (usdcResult as string).toLowerCase() === USDC_ADDRESS.toLowerCase()
@@ -243,7 +274,7 @@ export default function Deploy() {
     try {
       const maxR = await publicClient.readContract({
         address: deployed,
-        abi: SPLIT_DISTRIBUTOR_ABI_JSON,
+        abi: target.abi as typeof SPLIT_DISTRIBUTOR_ABI_JSON,
         functionName: 'MAX_RECIPIENTS',
       })
       v.maxRecipientsMatch = Number(maxR) === 50
@@ -254,8 +285,8 @@ export default function Deploy() {
     try {
       const count = await publicClient.readContract({
         address: deployed,
-        abi: SPLIT_DISTRIBUTOR_ABI_JSON,
-        functionName: 'distributionCount',
+        abi: target.abi as typeof SPLIT_DISTRIBUTOR_ABI_JSON,
+        functionName: target.counter as 'distributionCount',
       })
       v.distributionCountZero = BigInt(count) === 0n
     } catch {
@@ -293,7 +324,7 @@ export default function Deploy() {
       {/* Header */}
       <div className="flex flex-col gap-1">
         <h1 className="display font-bold text-2xl" style={{ color: 'var(--ink)', letterSpacing: '-0.03em' }}>
-          Deploy SplitDistributor
+          Deploy {target.label}
         </h1>
         <p className="text-sm" style={{ color: 'var(--muted)' }}>
           Deploy the contract to <strong style={{ color: 'var(--ink)' }}>{ACTIVE_NETWORK.name}</strong>{' '}
@@ -367,7 +398,7 @@ export default function Deploy() {
             <Row label="Constructor arg (USDC)" value={USDC_ADDRESS} mono />
             <Row
               label="Creation bytecode keccak256"
-              value={SPLIT_DISTRIBUTOR_BYTECODE_KECCAK256}
+              value={target.keccak}
               mono
             />
             <Row
@@ -573,7 +604,7 @@ export default function Deploy() {
               <CheckRow label="Contract code is non-empty (eth_getCode)" result={verification.codeNonEmpty} />
               <CheckRow label={`usdc() == ${USDC_ADDRESS}`} result={verification.usdcMatch} />
               <CheckRow label="MAX_RECIPIENTS() == 50" result={verification.maxRecipientsMatch} />
-              <CheckRow label="distributionCount() == 0" result={verification.distributionCountZero} />
+              <CheckRow label={`${target.counter}() == 0`} result={verification.distributionCountZero} />
             </div>
           </section>
 
@@ -591,11 +622,11 @@ export default function Deploy() {
                 value={IS_MAINNET ? 'mainnet' : 'testnet'}
               />
               <EnvLine
-                name="VITE_SPLIT_DISTRIBUTOR_ADDRESS"
+                name={target.envAddress}
                 value={deployedAddress}
               />
               <EnvLine
-                name="VITE_SPLIT_DEPLOY_BLOCK"
+                name={target.envBlock}
                 value={receipt.blockNumber.toString()}
               />
             </div>
@@ -630,4 +661,41 @@ function decodeError(err: unknown): string {
   }
   if (err instanceof Error) return err.message
   return 'Unknown error'
+}
+
+export default function Deploy() {
+  const [key, setKey] = useState<TargetKey>(() =>
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('contract') === 'scheduled'
+      ? 'scheduled'
+      : 'distributor',
+  )
+  return (
+    <div className="flex flex-col">
+      <div className="max-w-xl mx-auto w-full px-4 pt-8 flex flex-col gap-2">
+        <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--subtle)' }}>
+          Contract to deploy
+        </span>
+        <div className="flex gap-2" role="tablist">
+          {(Object.keys(TARGETS) as TargetKey[]).map((k) => (
+            <button
+              key={k}
+              role="tab"
+              aria-selected={key === k}
+              onClick={() => setKey(k)}
+              className="flex-1 rounded-2xl px-4 py-3 text-left"
+              style={{
+                background: key === k ? 'var(--accent-dim)' : 'var(--card, #fff)',
+                border: `1px solid ${key === k ? 'var(--accent)' : 'var(--border)'}`,
+              }}
+            >
+              <div className="text-sm font-bold" style={{ color: 'var(--ink)' }}>{TARGETS[k].label}</div>
+              <div className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>{TARGETS[k].blurb}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+      {/* key remounts the flow so switching contracts never reuses state from the other one */}
+      <DeployTarget key={key} target={TARGETS[key]} />
+    </div>
+  )
 }

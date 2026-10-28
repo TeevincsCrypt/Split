@@ -45,18 +45,31 @@ The testnet contract is already deployed (by Arc Studio):
 
 ## 2. Mainnet deploy (requires owner approval — real USDC)
 
-1. Put a small amount of USDC on Arc Mainnet in your wallet, enough for deployment gas. The Deploy page
-   shows the gas estimate before you sign.
-2. In `.env` set `VITE_SPLIT_NETWORK=mainnet` and **remove** `VITE_SPLIT_DISTRIBUTOR_ADDRESS` and
-   `VITE_SPLIT_DEPLOY_BLOCK`. If the public mainnet RPC refuses requests, also set
-   `VITE_SPLIT_RPC_URL` to a provider endpoint.
-3. `bun run dev`, then open `http://localhost:5173/deploy`.
-4. Check the network (Arc, chain 5042), the constructor argument (official USDC `0x3600…0000`) and the
-   bytecode hash. Tick the box, type `DEPLOY`, and sign in your wallet.
-5. Wait for the onchain checks to show PASS. Copy the three `.env` lines the page shows into `.env`,
-   then restart `bun run dev`.
-6. Run one small real distribution (e.g. 1 USDC) through the app and keep the receipt link and tx hash.
-7. Record the address, deploy tx and example tx in `README.md` and `docs/SUBMISSION.md`.
+Both contracts are deployed by the owner, from the owner's wallet, on the `/deploy` page. The page
+deploys the exact bytecode that Arc Studio compiled. It shows that bytecode's keccak256 hash, and the
+vitest suite checks the same hash. After deploying, the page reads the new contract back and checks it.
+
+Read-only checks already done on mainnet (GitHub Actions "RPC probe", `scripts/rpc-probe-mainnet.ts`,
+2026-10-28): chain ID 5042, and USDC at `0x3600…0000` has code, symbol `USDC` and 6 decimals.
+`rpc.mainnet.arc.io`, `rpc.blockdaemon.mainnet.arc.io` and `rpc.quicknode.mainnet.arc.io` all answer.
+
+1. Put a few USDC on Arc Mainnet in your wallet. Gas is paid in USDC, and the page shows the estimate
+   before you sign. Also send about 1 USDC to the keeper bot wallet, which pays gas for automatic releases.
+2. In Vercel, set `VITE_SPLIT_NETWORK=mainnet` and **delete** the four address/block variables
+   (`VITE_SPLIT_DISTRIBUTOR_ADDRESS`, `VITE_SPLIT_DEPLOY_BLOCK`, `VITE_SCHEDULED_SPLIT_ADDRESS`,
+   `VITE_SCHEDULED_SPLIT_DEPLOY_BLOCK`). Then **Redeploy**. Until step 5 the site says the contract
+   isn't configured, but `/deploy` still works.
+3. Open `https://paywsplit.vercel.app/deploy`, connect, and choose **SplitDistributor**. Check the
+   network (Arc, chain 5042), the constructor argument (official USDC `0x3600…0000`) and the bytecode hash.
+   Tick the box, type `DEPLOY`, and sign. Wait for every check to show PASS, then copy the env lines it shows.
+4. Switch the toggle to **ScheduledSplit** (or open `/deploy?contract=scheduled`) and repeat.
+5. Paste the four values into Vercel, then **Redeploy**.
+6. In GitHub, go to **Settings → Secrets and variables → Actions → Variables** and set
+   `SPLIT_NETWORK=mainnet` and `SCHEDULED_SPLIT_ADDRESS=<new address>`. If `RPC_URL` is set, change it
+   to a mainnet endpoint or delete it. Run the Keeper workflow once with `dry_run: true`.
+7. Make one small real payment (e.g. 1 USDC) with **Pay now**, and one small schedule a few minutes
+   ahead. Keep both receipt links and tx hashes.
+8. Record the addresses, deploy txs and example txs in `README.md` and `docs/SUBMISSION.md`.
 
 ## 3. Hosting on Vercel
 
@@ -80,6 +93,5 @@ The testnet contract is already deployed (by Arc Studio):
 4. Vercel's production site follows the `main` branch. Either merge
    `claude/arc-studio-cli-setup-mlisfu` into `main`, or set **Settings → Git → Production Branch** to that branch.
    Every other branch gets its own preview URL.
-5. **After the mainnet deploy:** change the variables to `mainnet`, the new address and the new deploy block,
-   then **Redeploy**. Open `/deploy` on your own machine (`bun run dev`), not on the public site.
+5. **Mainnet:** follow section 2 above.
 6. The live site is https://paywsplit.vercel.app (linked from `README.md` and `docs/SUBMISSION.md`).

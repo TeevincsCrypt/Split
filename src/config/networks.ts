@@ -47,7 +47,11 @@ const EXTRA_PUBLIC_RPCS: Record<number, string[]> = {
     'https://rpc.drpc.testnet.arc.io',
     'https://rpc.testnet.arc.network',
   ],
-  [ARC_MAINNET_CHAIN_ID]: [],
+  [ARC_MAINNET_CHAIN_ID]: [
+    'https://rpc.blockdaemon.mainnet.arc.io',
+    'https://rpc.quicknode.mainnet.arc.io',
+    'https://rpc.drpc.mainnet.arc.io',
+  ],
 }
 
 export { logSourcesFor } from './logSources'
