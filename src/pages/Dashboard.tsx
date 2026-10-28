@@ -200,8 +200,8 @@ function RecentDistributions({ address }: { address: string }) {
         <div className="flex flex-col gap-2">
           {events.map((ev) => (
             <Link
-              key={ev.distributionId.toString()}
-              to={`/d/${ev.distributionId}`}
+              key={ev.key}
+              to={ev.href}
               className="flex items-center justify-between px-4 py-3 rounded-2xl transition-colors"
               style={{
                 background: 'var(--surface-muted)',
@@ -213,7 +213,7 @@ function RecentDistributions({ address }: { address: string }) {
                   {ev.name || `#${ev.distributionId}`}
                 </div>
                 <div className="text-xs mt-0.5" style={{ color: 'var(--subtle)' }}>
-                  {ev.recipients.length} recipients
+                  {ev.kind === 'scheduled' ? `Scheduled · payment ${ev.paymentNumber}/${ev.paymentCount} · ` : ''}{ev.recipients.length} recipients
                 </div>
               </div>
               <div className="text-right">
@@ -221,7 +221,7 @@ function RecentDistributions({ address }: { address: string }) {
                   {formatUsdcAmount(ev.totalAmount, 2)} USDC
                 </div>
                 <div className="text-xs" style={{ color: 'var(--subtle)' }}>
-                  #{ev.distributionId.toString()}
+                  {ev.kind === 'scheduled' ? `Schedule #${ev.distributionId.toString()}` : `#${ev.distributionId.toString()}`}
                 </div>
               </div>
             </Link>

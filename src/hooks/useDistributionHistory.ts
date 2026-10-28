@@ -58,15 +58,15 @@ export function useDistributionHistory({ payer, limit }: Options = {}): UseDistr
     void fetchOlderHistory(scannedFrom, payer).then((result) => {
       setEvents((prev) => {
         const combined = [...result.events, ...prev]
-        // de-dup by distributionId
+        // de-dup by entry key (instant and scheduled ids can overlap)
         const seen = new Set<string>()
         const deduped = combined.filter((e) => {
-          const k = e.distributionId.toString()
+          const k = e.key
           if (seen.has(k)) return false
           seen.add(k)
           return true
         })
-        deduped.sort((a, b) => (b.distributionId > a.distributionId ? 1 : -1))
+        deduped.sort((a, b) => (b.blockNumber > a.blockNumber ? 1 : b.blockNumber < a.blockNumber ? -1 : 0))
         return limit ? deduped.slice(0, limit) : deduped
       })
       if (result.scannedFrom < scannedFrom) setScannedFrom(result.scannedFrom)

@@ -97,8 +97,8 @@ export default function Activity() {
         <div className="flex flex-col gap-2">
           {events.map((ev) => (
             <Link
-              key={ev.distributionId.toString()}
-              to={`/d/${ev.distributionId}`}
+              key={ev.key}
+              to={ev.href}
               className="card px-4 py-3.5 flex items-center justify-between gap-4 hover-lift"
               style={{ cursor: 'pointer' }}
             >
@@ -107,6 +107,7 @@ export default function Activity() {
                   {ev.name || `Distribution #${ev.distributionId}`}
                 </div>
                 <div className="text-xs mt-0.5 font-medium" style={{ color: 'var(--subtle)' }}>
+                  {ev.kind === 'scheduled' ? `Scheduled · payment ${ev.paymentNumber}/${ev.paymentCount} · ` : ''}
                   Payer: {formatAddress(ev.payer)} · {ev.recipients.length} recipients
                   {ev.timestamp ? ` · ${formatTimestamp(ev.timestamp)}` : ''}
                 </div>
@@ -123,7 +124,7 @@ export default function Activity() {
                   className="flex items-center gap-1 text-xs font-semibold hover:underline"
                   style={{ color: 'var(--subtle)' }}
                 >
-                  #{ev.distributionId.toString()} <ExternalLink className="size-3" />
+                  {ev.kind === 'scheduled' ? `Schedule #${ev.distributionId.toString()}` : `#${ev.distributionId.toString()}`} <ExternalLink className="size-3" />
                 </a>
               </div>
             </Link>

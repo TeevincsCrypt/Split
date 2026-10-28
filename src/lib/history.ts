@@ -12,6 +12,7 @@ import { arcMainnet } from '@/config'
 import { ACTIVE_NETWORK, logSourcesFor } from '@/config/networks'
 import { scanLogsBackward, type LogClient, type LogSource } from '@/lib/logScan'
 import { SPLIT_DISTRIBUTOR_ABI } from '@/abi/SplitDistributor'
+import { SCHEDULED_SPLIT_ABI } from '@/abi/ScheduledSplit'
 
 export interface DistributionEvent {
   distributionId: bigint
@@ -25,6 +26,16 @@ export interface DistributionEvent {
   blockNumber: bigint
   transactionHash: string
   timestamp: number | null // unix seconds, null if fetch failed
+  /** 'instant' = Pay now (SplitDistributor); 'scheduled' = a ScheduledSplit payment */
+  kind: 'instant' | 'scheduled'
+  /** Unique list key across both kinds */
+  key: string
+  /** In-app link: /d/:id for instant, /s/:id for scheduled */
+  href: string
+  scheduleId?: bigint
+  /** 1-based payment number within the schedule */
+  paymentNumber?: number
+  paymentCount?: number
 }
 
 const CHUNK_SIZE = 2_000n
@@ -168,15 +179,85 @@ async function decodeLogs(
         blockNumber: log.blockNumber!,
         transactionHash: log.transactionHash!,
         timestamp,
+        kind: 'instant',
+        key: `d-${args.distributionId}`,
+        href: `/d/${args.distributionId}`,
       })
     } catch {
       /* skip malformed log */
     }
   }
   // Newest first
-  events.sort((a, b) => (b.distributionId > a.distributionId ? 1 : -1))
+  events.sort((a, b) => (b.blockNumber > a.blockNumber ? 1 : b.blockNumber < a.blockNumber ? -1 : 0))
   return events
 }
+
+const scheduledExecutedEvent = parseAbiItem(
+  'event ScheduledPaymentExecuted(uint256 indexed id, uint32 index, address indexed executor, uint64 dueTime, uint256[] amounts)',
+)
+
+/**
+ * Executed ScheduledSplit payments as feed entries. Payer, name and recipients come
+ * from getSchedule(id) (one read per schedule). Returns [] when scheduling is not configured.
+ */
+async function fetchScheduledPayouts(head: bigint, payer?: string): Promise<{ events: DistributionEvent[]; partial: boolean }> {
+  const address = ACTIVE_NETWORK.scheduledSplitAddress
+  if (!address) return { events: [], partial: false }
+  type ExecLog = {
+    args: { id?: bigint; index?: number; amounts?: readonly bigint[] }
+    blockNumber: bigint | null
+    transactionHash: `0x${string}` | null
+  }
+  const { logs, partial } = await scanLogsBackward<ExecLog>({
+    sources: logSources, address, event: scheduledExecutedEvent,
+    floor: ACTIVE_NETWORK.scheduledSplitDeployBlock, to: head,
+  })
+
+  const ids = [...new Set(logs.map((l) => l.args.id).filter((x): x is bigint => x !== undefined))]
+  const schedules = new Map<bigint, { payer: string; name: string; recipients: readonly string[]; bps: readonly number[]; count: number }>()
+  await Promise.all(ids.map(async (id) => {
+    try {
+      const sch = await publicClient.readContract({ address, abi: SCHEDULED_SPLIT_ABI, functionName: 'getSchedule', args: [id] })
+      schedules.set(id, { payer: sch.payer, name: sch.name, recipients: sch.recipients, bps: sch.bps, count: sch.dueTimes.length })
+    } catch { /* skipped below; counted as partial */ }
+  }))
+
+  const events: DistributionEvent[] = []
+  let missing = false
+  for (const log of logs) {
+    const id = log.args.id
+    const sch = id !== undefined ? schedules.get(id) : undefined
+    if (id === undefined || !sch || log.blockNumber === null || !log.transactionHash) { missing = true; continue }
+    if (payer && sch.payer.toLowerCase() !== payer.toLowerCase()) continue
+    let timestamp: number | null = null
+    try { timestamp = Number((await publicClient.getBlock({ blockNumber: log.blockNumber })).timestamp) } catch { /* non-fatal */ }
+    const amounts = log.args.amounts ?? []
+    const n = Number(log.args.index ?? 0) + 1
+    events.push({
+      distributionId: id,
+      payer: sch.payer,
+      nameHash: '',
+      name: sch.name,
+      totalAmount: amounts.reduce((a, b) => a + b, 0n),
+      recipients: sch.recipients,
+      bps: sch.bps,
+      amounts,
+      blockNumber: log.blockNumber,
+      transactionHash: log.transactionHash,
+      timestamp,
+      kind: 'scheduled',
+      key: `s-${id}-${n}`,
+      href: `/s/${id}`,
+      scheduleId: id,
+      paymentNumber: n,
+      paymentCount: sch.count,
+    })
+  }
+  return { events, partial: partial || missing }
+}
+
+const byNewest = (a: DistributionEvent, b: DistributionEvent) =>
+  b.blockNumber > a.blockNumber ? 1 : b.blockNumber < a.blockNumber ? -1 : 0
 
 /**
  * Fetch the most-recent window of Distributed events (newest-first).
@@ -198,17 +279,24 @@ export async function fetchHistory(opts: FetchHistoryOptions = {}): Promise<Fetc
   }
 
   const deployBlock = ACTIVE_NETWORK.deployBlock
-  if (total === 0n) return { events: [], partial: false, rpcError: false, scannedFrom: deployBlock, chainHead }
+  const to = opts.toBlock ?? chainHead
 
-  // Scan all payers (so we can stop once every distribution is found), filter by payer after.
-  const { logs, partial, scannedFrom } = await scanBackward(
-    contractAddress, deployBlock, opts.toBlock ?? chainHead, {}, (found) => BigInt(found.length) >= total,
-  )
-  const wanted = opts.payer
-    ? logs.filter((l) => (l as { args?: { payer?: string } }).args?.payer?.toLowerCase() === opts.payer!.toLowerCase())
-    : logs
-  const events = await decodeLogs(wanted)
-  return { events, partial, rpcError: false, scannedFrom: partial ? scannedFrom : deployBlock, chainHead }
+  // Pay-now distributions: scan all payers so we can stop once every one is found.
+  const instantP = total === 0n
+    ? Promise.resolve({ events: [] as DistributionEvent[], partial: false, scannedFrom: deployBlock })
+    : scanBackward(contractAddress, deployBlock, to, {}, (found) => BigInt(found.length) >= total).then(async (r) => {
+        const wanted = opts.payer
+          ? r.logs.filter((l) => (l as { args?: { payer?: string } }).args?.payer?.toLowerCase() === opts.payer!.toLowerCase())
+          : r.logs
+        return { events: await decodeLogs(wanted), partial: r.partial, scannedFrom: r.scannedFrom }
+      })
+  // Scheduled payments (ScheduledSplit), when configured.
+  const scheduledP = fetchScheduledPayouts(to, opts.payer).catch(() => ({ events: [] as DistributionEvent[], partial: true }))
+
+  const [instant, scheduled] = await Promise.all([instantP, scheduledP])
+  const events = [...instant.events, ...scheduled.events].sort(byNewest)
+  const partial = instant.partial || scheduled.partial
+  return { events, partial, rpcError: false, scannedFrom: instant.partial ? instant.scannedFrom : deployBlock, chainHead }
 }
 
 /**
