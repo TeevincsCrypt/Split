@@ -102,6 +102,12 @@ GitHub schedules are not guaranteed to fire exactly on the cron expression. A 5-
 
 ---
 
+## Fast installs
+
+The workflow installs only `scripts/package.json` (viem, 13 packages, own lockfile), not the whole web app,
+with 2-minute step timeouts and a 4-minute job timeout. A run takes about 15 seconds, so a slow package
+registry can no longer hold up a payment.
+
 ## Step 5 (recommended): reliable timing with an external trigger
 
 GitHub's own `schedule:` trigger is best-effort. On a busy day, frequent schedules like every
