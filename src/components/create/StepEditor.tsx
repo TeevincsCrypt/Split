@@ -1,5 +1,5 @@
-import { useRef } from 'react'
-import { Plus, Trash2, Shuffle, AlertCircle } from 'lucide-react'
+import { useRef, useState, useCallback } from 'react'
+import { Plus, Trash2, Shuffle, AlertCircle, Users, BookOpen, Save, X, Check } from 'lucide-react'
 import { type SplitDraft } from '@/pages/CreateSplit'
 import { type RecipientRow, validateSplit } from '@/lib/validation'
 import {
@@ -7,6 +7,11 @@ import {
   percentToBps, bpsToPercent, sumBps, equalBps, BPS_DENOMINATOR,
 } from '@/lib/allocation'
 import { MAX_RECIPIENTS } from '@/config/networks'
+import {
+  loadBook, saveTeam, validateTeamName,
+  type Contact, type Team,
+} from '@/lib/addressBook'
+import { formatAddress } from '@/lib/utils'
 
 interface Props {
   draft: SplitDraft
@@ -183,6 +188,57 @@ export default function StepEditor({ draft, touched, onTouch, onChange, onNext }
     ? errorCount === 1 ? 'Fix 1 issue to continue' : `Fix ${errorCount} issues to continue`
     : null
 
+  // ── Address book state ──────────────────────────────────────────────
+  const [teamPickerOpen, setTeamPickerOpen] = useState(false)
+  const [contactPickerRow, setContactPickerRow] = useState<number | null>(null)
+  const [saveTeamOpen, setSaveTeamOpen] = useState(false)
+  const [saveTeamName, setSaveTeamName] = useState('')
+  const [saveTeamNameErr, setSaveTeamNameErr] = useState<string | null>(null)
+  const [saveTeamDone, setSaveTeamDone] = useState(false)
+  // Re-read localStorage on every render so the pickers reflect the latest book state.
+  // loadBook() is a simple synchronous read — safe to call during render.
+  const book = loadBook()
+
+  const loadTeam = useCallback((team: Team) => {
+    // Fill name suggestion (never overwrite amount)
+    const rows: RecipientRow[] = team.rows.map((r) => ({
+      label: r.label,
+      address: r.address,
+      bps: r.bps,
+    }))
+    onChange({
+      ...draft,
+      name: draft.name || team.name,
+      rows,
+    })
+    onTouch({
+      rowAddress: rows.map(() => false),
+      rowBps: rows.map(() => false),
+    })
+    setTeamPickerOpen(false)
+  }, [draft, onChange, onTouch])
+
+  function pickContact(i: number, contact: Contact) {
+    updateRow(i, { address: contact.address, label: draft.rows[i].label || contact.label })
+    setContactPickerRow(null)
+  }
+
+  function handleSaveTeam(e: React.FormEvent) {
+    e.preventDefault()
+    const ne = validateTeamName(saveTeamName)
+    setSaveTeamNameErr(ne)
+    if (ne) return
+    const teamRows = draft.rows.map((r) => ({
+      label: r.label || '',
+      address: r.address,
+      bps: r.bps,
+    }))
+    const r = saveTeam(saveTeamName, teamRows)
+    if (!r.ok) { setSaveTeamNameErr(r.error); return }
+    setSaveTeamDone(true)
+    setTimeout(() => { setSaveTeamOpen(false); setSaveTeamDone(false); setSaveTeamName('') }, 1200)
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <h2 className="display font-bold text-xl" style={{ color: 'var(--ink)', letterSpacing: '-0.03em' }}>
@@ -249,7 +305,16 @@ export default function StepEditor({ draft, touched, onTouch, onChange, onNext }
           <label className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--subtle)' }}>
             Recipients ({draft.rows.length}/{MAX_RECIPIENTS})
           </label>
-          <div className="flex gap-1.5">
+          <div className="flex gap-1.5 flex-wrap">
+            {book.teams.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setTeamPickerOpen(true)}
+                className="chip flex items-center gap-1"
+              >
+                <Users className="size-3" /> Load team
+              </button>
+            )}
             <button
               type="button"
               onClick={fillExample}
@@ -287,7 +352,7 @@ export default function StepEditor({ draft, touched, onTouch, onChange, onNext }
                   boxShadow: 'var(--shadow-card)',
                 }}
               >
-                {/* Row header: number, label, delete */}
+                {/* Row header: number, label, contacts picker, delete */}
                 <div className="flex items-center gap-2">
                   <span
                     className="size-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
@@ -303,6 +368,18 @@ export default function StepEditor({ draft, touched, onTouch, onChange, onNext }
                     className="flex-1 bg-transparent text-sm outline-none placeholder:opacity-40 font-medium"
                     style={{ color: 'var(--ink-2)' }}
                   />
+                  {book.contacts.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setContactPickerRow(i)}
+                      className="icon-btn"
+                      style={{ width: 26, height: 26, background: 'var(--surface-muted)', boxShadow: 'none' }}
+                      aria-label="Pick from contacts"
+                      title="Add from contacts"
+                    >
+                      <BookOpen className="size-3" style={{ color: 'var(--muted)' }} />
+                    </button>
+                  )}
                   {draft.rows.length > 1 && (
                     <button type="button" onClick={() => removeRow(i)}
                       className="icon-btn opacity-50 hover:opacity-100 transition-opacity"
@@ -374,7 +451,171 @@ export default function StepEditor({ draft, touched, onTouch, onChange, onNext }
             <Plus className="size-4" /> Add recipient
           </button>
         )}
+
+        {/* Save as team — only show when allocation is valid */}
+        {validation.valid && (
+          <button
+            type="button"
+            onClick={() => { setSaveTeamName(draft.name); setSaveTeamOpen(true) }}
+            className="mt-1 w-full py-2 rounded-2xl flex items-center justify-center gap-1.5 text-xs font-semibold transition-colors"
+            style={{ border: '1px solid var(--border)', color: 'var(--muted)', background: 'transparent' }}
+          >
+            <Save className="size-3.5" /> Save as team
+          </button>
+        )}
       </div>
+
+      {/* ── Address book modals ──────────────────────────────────────────── */}
+
+      {/* Team picker */}
+      {teamPickerOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+          style={{ background: 'rgba(20,20,20,0.45)' }}
+          onPointerDown={(e) => { if (e.target === e.currentTarget) setTeamPickerOpen(false) }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Load team"
+            className="w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl p-5 flex flex-col gap-4 max-h-[80dvh] overflow-y-auto"
+            style={{ background: 'var(--card)', boxShadow: 'var(--shadow-lift)' }}
+          >
+            <div className="flex items-center justify-between">
+              <span className="display font-bold text-lg" style={{ color: 'var(--ink)', letterSpacing: '-0.03em' }}>Load team</span>
+              <button onClick={() => setTeamPickerOpen(false)} className="icon-btn" style={{ width: 30, height: 30 }}>
+                <X className="size-4" style={{ color: 'var(--muted)' }} />
+              </button>
+            </div>
+            <p className="text-xs" style={{ color: 'var(--subtle)' }}>
+              Loading a team fills the recipient rows and suggests the name. Your amount is not changed.
+            </p>
+            {book.teams.map((team) => (
+              <button
+                key={team.id}
+                type="button"
+                onClick={() => loadTeam(team)}
+                className="card p-3.5 text-left flex flex-col gap-1.5 hover-lift"
+                style={{ borderRadius: 16 }}
+              >
+                <span className="font-bold text-sm" style={{ color: 'var(--ink)' }}>{team.name}</span>
+                <span className="text-xs" style={{ color: 'var(--muted)' }}>
+                  {team.rows.length} recipient{team.rows.length !== 1 ? 's' : ''} ·{' '}
+                  {team.rows.map((r) => `${bpsToPercent(r.bps)}%`).join(' / ')}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Contact picker for a specific row */}
+      {contactPickerRow !== null && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+          style={{ background: 'rgba(20,20,20,0.45)' }}
+          onPointerDown={(e) => { if (e.target === e.currentTarget) setContactPickerRow(null) }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Add from contacts"
+            className="w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl p-5 flex flex-col gap-4 max-h-[80dvh] overflow-y-auto"
+            style={{ background: 'var(--card)', boxShadow: 'var(--shadow-lift)' }}
+          >
+            <div className="flex items-center justify-between">
+              <span className="display font-bold text-lg" style={{ color: 'var(--ink)', letterSpacing: '-0.03em' }}>
+                Add from contacts
+              </span>
+              <button onClick={() => setContactPickerRow(null)} className="icon-btn" style={{ width: 30, height: 30 }}>
+                <X className="size-4" style={{ color: 'var(--muted)' }} />
+              </button>
+            </div>
+            {book.contacts.length === 0 ? (
+              <p className="text-sm text-center py-4" style={{ color: 'var(--muted)' }}>No contacts saved yet.</p>
+            ) : (
+              <ContactSearchList
+                contacts={book.contacts}
+                onPick={(c) => pickContact(contactPickerRow, c)}
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Save as team modal */}
+      {saveTeamOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+          style={{ background: 'rgba(20,20,20,0.45)' }}
+          onPointerDown={(e) => { if (e.target === e.currentTarget) setSaveTeamOpen(false) }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Save as team"
+            className="w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl p-5 flex flex-col gap-4"
+            style={{ background: 'var(--card)', boxShadow: 'var(--shadow-lift)' }}
+          >
+            <div className="flex items-center justify-between">
+              <span className="display font-bold text-lg" style={{ color: 'var(--ink)', letterSpacing: '-0.03em' }}>Save as team</span>
+              <button onClick={() => setSaveTeamOpen(false)} className="icon-btn" style={{ width: 30, height: 30 }}>
+                <X className="size-4" style={{ color: 'var(--muted)' }} />
+              </button>
+            </div>
+            {saveTeamDone ? (
+              <div className="flex flex-col items-center gap-3 py-4">
+                <div
+                  className="size-12 rounded-full flex items-center justify-center"
+                  style={{ background: 'var(--success-bg)' }}
+                >
+                  <Check className="size-6" style={{ color: 'var(--success)' }} />
+                </div>
+                <p className="font-semibold text-sm" style={{ color: 'var(--success)' }}>Team saved!</p>
+              </div>
+            ) : (
+              <form onSubmit={handleSaveTeam} className="flex flex-col gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--subtle)' }}>
+                    Team name
+                  </label>
+                  <div
+                    className="card px-4 py-2.5"
+                    style={{ borderRadius: 14, borderColor: saveTeamNameErr ? 'var(--danger)' : 'var(--border)' }}
+                  >
+                    <input
+                      autoFocus
+                      type="text"
+                      maxLength={40}
+                      placeholder="e.g. Q4 contributors"
+                      value={saveTeamName}
+                      onChange={(e) => setSaveTeamName(e.target.value)}
+                      className="w-full bg-transparent text-sm font-medium outline-none"
+                      style={{ color: 'var(--ink)' }}
+                    />
+                  </div>
+                  {saveTeamNameErr && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <AlertCircle className="size-3 shrink-0" style={{ color: 'var(--danger)' }} />
+                      <span className="text-xs font-medium" style={{ color: 'var(--danger)' }}>{saveTeamNameErr}</span>
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs" style={{ color: 'var(--subtle)' }}>
+                  {draft.rows.length} recipient{draft.rows.length !== 1 ? 's' : ''} ·{' '}
+                  {draft.rows.map((r) => `${bpsToPercent(r.bps)}%`).join(' / ')}
+                </p>
+                <div className="flex gap-3 justify-end">
+                  <button type="button" onClick={() => setSaveTeamOpen(false)} className="btn-ghost text-sm px-5 py-2">Cancel</button>
+                  <button type="submit" className="btn-primary text-sm px-5 py-2">
+                    <Save className="size-3.5" /> Save
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Live summary card */}
       <div
@@ -518,6 +759,57 @@ function ErrorMsg({ msg }: { msg: string }) {
     <div className="flex items-center gap-1 mt-0.5">
       <AlertCircle className="size-3 shrink-0" style={{ color: 'var(--danger)' }} />
       <span className="text-xs font-medium" style={{ color: 'var(--danger)' }}>{msg}</span>
+    </div>
+  )
+}
+
+function ContactSearchList({ contacts, onPick }: { contacts: Contact[]; onPick: (c: Contact) => void }) {
+  const [query, setQuery] = useState('')
+  const filtered = query.trim()
+    ? contacts.filter(
+        (c) =>
+          c.label.toLowerCase().includes(query.toLowerCase()) ||
+          c.address.toLowerCase().includes(query.toLowerCase()),
+      )
+    : contacts
+
+  return (
+    <div className="flex flex-col gap-3">
+      <input
+        autoFocus
+        type="text"
+        placeholder="Search by name or address…"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        className="card px-4 py-2.5 w-full bg-transparent text-sm outline-none"
+        style={{ borderRadius: 14, color: 'var(--ink)' }}
+      />
+      {filtered.length === 0 ? (
+        <p className="text-sm text-center py-3" style={{ color: 'var(--muted)' }}>No matches.</p>
+      ) : (
+        <div className="flex flex-col gap-1.5 max-h-60 overflow-y-auto">
+          {filtered.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => onPick(c)}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-2xl text-left transition-colors hover-lift"
+              style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)' }}
+            >
+              <div
+                className="size-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                style={{ background: 'var(--accent-dim)', color: 'var(--accent)' }}
+              >
+                {c.label.charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <div className="font-semibold text-sm truncate" style={{ color: 'var(--ink)' }}>{c.label}</div>
+                <div className="mono text-xs truncate" style={{ color: 'var(--muted)' }}>{formatAddress(c.address)}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

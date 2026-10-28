@@ -10,6 +10,7 @@ const Receipt = lazy(() => import('@/pages/Receipt'))
 const Activity = lazy(() => import('@/pages/Activity'))
 const HowItWorks = lazy(() => import('@/pages/HowItWorks'))
 const Deploy = lazy(() => import('@/pages/Deploy'))
+const Recipients = lazy(() => import('@/pages/Recipients'))
 
 function PageLoader() {
   return (
@@ -52,6 +53,10 @@ export default function App() {
           <Route
             path="/deploy"
             element={<Layout><Deploy /></Layout>}
+          />
+          <Route
+            path="/recipients"
+            element={<Layout><Recipients /></Layout>}
           />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
