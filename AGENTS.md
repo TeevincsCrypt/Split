@@ -90,6 +90,24 @@ Split lets teams, DAOs, freelancers, and businesses distribute USDC to multiple 
 - Slither: 0 Medium/High findings. 3 Low `timestamp` (inherent), 1 Informational `cyclomatic-complexity`.
 - Gas benchmarks: `createSchedule(50 recipients, 24 payments)` = 2,014,393 gas. `execute(50 recipients)` first call = 1,320,090 gas; avg over 24 payments = 249,721 gas.
 
+## Scheduled Payments Feature (complete)
+
+- `src/pages/CreateSplit.tsx` — "Pay now" / "Schedule" mode selector; schedule steps: ScheduleForm → StepReview → StepScheduleApprove → StepScheduleCreate.
+- `src/pages/Schedules.tsx` — `/schedules` page; lists user's created schedules by status (due, upcoming, completed, cancelled); inline execute + cancel.
+- `src/pages/ScheduleDetail.tsx` — `/s/:id` public page; shows schedule details, payment history, "Pay now" button (anyone can trigger `execute()`).
+- `src/components/create/ScheduleForm.tsx` — date/time picker, repeat mode, computed payment list, total deposit.
+- `src/components/create/StepScheduleApprove.tsx` — approves exactly `totalDeposit` to ScheduledSplit.
+- `src/components/create/StepScheduleCreate.tsx` — calls `createSchedule`, decodes `ScheduleCreated` event.
+- `src/lib/schedule.ts` — `computeDueTimes`, `addInterval` (monthly clamp fixed), `formatCountdown`, `formatDueTime`, `selectUpcomingSchedules`.
+- `src/lib/scheduleHistory.ts` — getLogs for ScheduleCreated/Executed/Cancelled events.
+- `src/hooks/useScheduleHistory.ts` — enriched schedule list with live contract state.
+- Layout nav now includes "Schedules".
+- Dashboard "Upcoming payments" bento card added.
+- `scripts/keeper.ts` — Bun+viem keeper bot; simulate-then-execute loop; exit 0 when nothing due; never logs private key.
+- `.github/workflows/keeper.yml` — cron `*/5 * * * *` + `workflow_dispatch`; `oven-sh/setup-bun`; frozen lockfile; concurrency group.
+- `docs/KEEPER.md` — keeper setup and operations guide.
+- Vitest: 102/102 pass. Lint: 0 errors. Typecheck: 0 errors. `vite build`: success.
+
 ## To Run
 
 ```bash

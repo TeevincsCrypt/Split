@@ -10,12 +10,12 @@
       "pulledAt": "2026-10-26T23:55:44.093Z"
     },
     ".oxlintrc.json": {
-      "hash": "5f1d92cb882c4bb23420d87082a9d5f1bef8d9bbbab5587bf8a49b70464da7ff",
-      "pulledAt": "2026-10-26T23:55:44.093Z"
+      "hash": "2069afa8a554458ae7737b773e450267ffeeb2cea1c7426375f542d3efe7d4ee",
+      "pulledAt": "2026-10-28T05:09:56.208Z"
     },
     "AGENTS.md": {
-      "hash": "a847ed89c18a57bf7a953292d76700094d86cedeabe263fb09f59aea58808d00",
-      "pulledAt": "2026-10-28T04:49:46.211Z"
+      "hash": "5467ddb3671cacadd593658937eb848a5964e1ed8b2e6be912b6df34fd76db05",
+      "pulledAt": "2026-10-28T05:06:23.972Z"
     },
     "README.md": {
       "hash": "a921bb82a6e99a94b67b4e9a290d5da5792e860a68e36a702dbe32e39adf2a9f",
@@ -26,8 +26,8 @@
       "pulledAt": "2026-10-28T04:32:01.953Z"
     },
     "foundry.toml": {
-      "hash": "c239dd6c7d41d9ea51312ee90e8972f1b867063fa3ccc5bed76df7b254611c71",
-      "pulledAt": "2026-10-28T04:49:46.213Z"
+      "hash": "679a65df4dbcd3872b2800550abc23463a903aa400c745dbbb39cd5b15562b1d",
+      "pulledAt": "2026-10-28T05:05:50.755Z"
     },
     "index.html": {
       "hash": "b544e3b727b205322305c4b6c023ec328e2a56eace17e31d1eadccaf0b3724b0",
@@ -86,8 +86,8 @@
       "pulledAt": "2026-10-26T23:55:44.101Z"
     },
     "src/App.tsx": {
-      "hash": "0d20568d7c8c5c30187f9f180539b30838fd46a8ff35fc5d81c4493a28d9f2e8",
-      "pulledAt": "2026-10-28T04:32:01.955Z"
+      "hash": "9efc09a3373e40585c25f186bf6ea7adf4f2a63452b80581ae082fc5b3fce216",
+      "pulledAt": "2026-10-28T05:06:23.976Z"
     },
     "src/config.ts": {
       "hash": "9196f9183cb7fa9bfac5c9bb15c8e1ea0e1e964f6bffafaf0a8d9274d5bb0f21",
@@ -666,16 +666,16 @@
       "pulledAt": "2026-10-27T07:49:55.403Z"
     },
     "src/components/Layout.tsx": {
-      "hash": "6e64a6334af3ba97e65e8c49deab752df31fd9fe093420cc8b120d060e1dfc38",
-      "pulledAt": "2026-10-28T04:32:01.958Z"
+      "hash": "b29e513ad10c2727ffcbc2188dadbf878e259ae4e3163a4c5b2e2d3e93f1efc0",
+      "pulledAt": "2026-10-28T05:06:23.980Z"
     },
     "src/components/WrongNetworkBanner.tsx": {
       "hash": "adf0cc7ef9e64ce98959306f485f0ab027e7afef952060c52ec517e6a0121bd5",
       "pulledAt": "2026-10-27T07:49:55.405Z"
     },
     "src/config/networks.ts": {
-      "hash": "f67dd36ecf5089ce61ee54afe6f5b171295de407129f0efd3c23f00d9751f41d",
-      "pulledAt": "2026-10-28T04:31:36.700Z"
+      "hash": "88ea545e4e3c248a901a4279e7c67f07f1810431fd5aefa3ee38a070fbcdb01a",
+      "pulledAt": "2026-10-28T05:06:23.981Z"
     },
     "src/hooks/useDistributionHistory.ts": {
       "hash": "22262480654c72f03a4e17597b3828508bbc26f9575d64f0e758934543b6226e",
@@ -710,12 +710,12 @@
       "pulledAt": "2026-10-27T07:49:55.408Z"
     },
     "src/pages/CreateSplit.tsx": {
-      "hash": "5ebfcd485f2e672cbd027fdc839ee02deb56fb223d673787eb2938d9c96b06ae",
-      "pulledAt": "2026-10-27T07:49:55.409Z"
+      "hash": "e117d6df738b99bca9001279260cf0a25f2794c4e2ed848d41521ebfa08cc606",
+      "pulledAt": "2026-10-28T05:06:23.983Z"
     },
     "src/pages/Dashboard.tsx": {
-      "hash": "2975cae2a6c17bc598d2da4ca9138b2388c8529aad164398eae394285c1d4fcb",
-      "pulledAt": "2026-10-27T07:49:55.409Z"
+      "hash": "9526936b7965d5f8ac35bd527e09eb1d3e3abcbf55e7d6c67295c666024365f7",
+      "pulledAt": "2026-10-28T05:06:23.984Z"
     },
     "src/pages/HowItWorks.tsx": {
       "hash": "0c21426f89a0031f6e228f15666b7028edb209ae9244c2c39127424e14c36a34",
@@ -738,28 +738,28 @@
       "pulledAt": "2026-10-27T07:49:55.610Z"
     },
     "src/components/create/StepEditor.tsx": {
-      "hash": "cc54134d4d5a362ddbbfffe5f3a88102870cc624f5710bac5c2a7fbb6ea79680",
-      "pulledAt": "2026-10-28T04:32:01.971Z"
+      "hash": "6f0bd9a1c401f8e51b8dae7f50bc1edf1f468f6aedb746dfbe7de24a7d61bc9b",
+      "pulledAt": "2026-10-28T05:06:24.010Z"
     },
     "src/components/create/StepReview.tsx": {
-      "hash": "817c0639830b009f6655d61d7f864e53d557aa058b60714c5ad7ab60e7be8d0a",
-      "pulledAt": "2026-10-27T07:49:55.611Z"
+      "hash": "d05079b84b210f988be32361b5acf751bee5b839e9c04cd76fe466772b8579ea",
+      "pulledAt": "2026-10-28T05:06:24.011Z"
     },
     ".env.example": {
-      "hash": "2ae9dedd3fdb9a606f9f5f5839bab5c801de95adf68152868edc599547f2e2bd",
-      "pulledAt": "2026-10-27T00:36:29.050Z"
+      "hash": "a699b4316846146cbd0ec9452c15c58d5d0a2dd2d58ce092a5f5ad6a967424aa",
+      "pulledAt": "2026-10-28T05:06:24.932Z"
     },
     "scripts/export-artifact.ts": {
       "hash": "65291ea28240bfd8a3c6035ec7ca40af2ecd0cf1610e0ce8a52a4e835bca35d3",
       "pulledAt": "2026-10-27T00:25:36.709Z"
     },
     "src/abi/SplitDistributorArtifact.ts": {
-      "hash": "aa8e2089a3aaf2d5ae4add5c96135bb580ba5d83cb26d95b4788a257d38bb90c",
-      "pulledAt": "2026-10-28T04:49:46.223Z"
+      "hash": "76c58b4707fcf38039c1357dd00ceb990646bc552a8a8ca1fc5523a684b29b52",
+      "pulledAt": "2026-10-28T05:05:50.755Z"
     },
     "src/lib/artifact.test.ts": {
-      "hash": "fe6a28b88cb3c906dae12b6b94cc8904337cfb42f3edbee7e8ec2cae4403f1dd",
-      "pulledAt": "2026-10-28T04:49:46.225Z"
+      "hash": "9f62818f7724b62fcd7913e3f8b82d1619b6d3aa886189d511e67ab7f635d96a",
+      "pulledAt": "2026-10-28T05:05:50.755Z"
     },
     "src/pages/Deploy.tsx": {
       "hash": "35c3e1f3f952dedb02dc0205fc95a5808fc5c3a397fa44b95da7d9ee5c480d4b",
@@ -771,7 +771,7 @@
     },
     "public/brand/split-logo-source.jpg": {
       "hash": "9ce0a0c1accf3304d4122404891c4808cca9562a374ab4dae976c299e2458ab2",
-      "pulledAt": "2026-10-28T04:49:46.219Z"
+      "pulledAt": "2026-10-28T05:10:12.922Z"
     },
     "public/brand/split-mark.svg": {
       "hash": "8e0cfec67be58b2db0330e7d65516568f86720188be08ec8e8ce7357f48b2862",
@@ -896,6 +896,66 @@
     "cache/fuzz/failures/ScheduledSplitFuzzTest/testFuzz_CreateAndExecute": {
       "hash": "6bfec65f83e3d5a19854111eabb4cedd1b813056afaba4f6e06e389073e0f7b7",
       "pulledAt": "2026-10-28T04:49:46.289Z"
+    },
+    "docs/KEEPER.md": {
+      "hash": "eb1f287eb785ea7797f16b49a74d91acc52b91d65f0b3ab74d53fcab4f6313a8",
+      "pulledAt": "2026-10-28T05:10:12.911Z"
+    },
+    "scripts/keeper.ts": {
+      "hash": "126d442780d64e3fcde49358f13a14c9bd4171379e4f155cda2e8fa06debacd4",
+      "pulledAt": "2026-10-28T05:10:12.915Z"
+    },
+    ".github/workflows/keeper.yml": {
+      "hash": "9953003dc5821e59d4909d60f48429c80d5c20004e6f67e9d9c448c63eadea25",
+      "pulledAt": "2026-10-28T05:10:12.917Z"
+    },
+    "src/abi/ScheduledSplit.ts": {
+      "hash": "1123ae0808f8bf76e0692cb9719f4e68a0b9a39ef51efae9f68571888c713ae8",
+      "pulledAt": "2026-10-28T05:06:23.979Z"
+    },
+    "src/hooks/useScheduleHistory.ts": {
+      "hash": "258e8699106af612db215cef8158d2292148fa7b2b021fec25f64b9a2c0ea90b",
+      "pulledAt": "2026-10-28T05:06:23.981Z"
+    },
+    "src/lib/schedule.test.ts": {
+      "hash": "082b61c5abc40c34bc389e0b81a4cc395ac9a84d7d219a0a61a3b151149c39ce",
+      "pulledAt": "2026-10-28T05:06:23.982Z"
+    },
+    "src/lib/schedule.ts": {
+      "hash": "a5a37182789c135c5ff12820af883d9a9c550a91bdee8befa13e05c68d5528a6",
+      "pulledAt": "2026-10-28T05:06:23.982Z"
+    },
+    "src/lib/scheduleHistory.ts": {
+      "hash": "91f918af29bb1aa5f369ff89be7382fcc8d127729e9a86bacd74aa8b03e25261",
+      "pulledAt": "2026-10-28T05:06:23.982Z"
+    },
+    "src/pages/ScheduleDetail.tsx": {
+      "hash": "333f333b8dd29fad28632c3c01043145e65a0f236810e7a19467d3ab55074cdd",
+      "pulledAt": "2026-10-28T05:06:23.984Z"
+    },
+    "src/pages/Schedules.tsx": {
+      "hash": "56455c0d6eefdbb084b21a921282ca7fd1ed679adcb4a557cc3b3da0f6b13878",
+      "pulledAt": "2026-10-28T05:06:23.985Z"
+    },
+    "src/components/create/ScheduleForm.tsx": {
+      "hash": "c57a8d72adfcb81698b41e0b0466bd56c2048886712f57d16a3e30d6ef8124f9",
+      "pulledAt": "2026-10-28T05:06:24.009Z"
+    },
+    "src/components/create/StepScheduleApprove.tsx": {
+      "hash": "4a4e1b37d0106afe64ff72efa04413447b3bff5723231b9faacf1fd43db5ef54",
+      "pulledAt": "2026-10-28T05:06:24.011Z"
+    },
+    "src/components/create/StepScheduleCreate.tsx": {
+      "hash": "17c22d046e955398d636e1f7b2fd7f5e7e8eacb87942210a56dffc47548378c8",
+      "pulledAt": "2026-10-28T05:06:24.011Z"
+    },
+    "scripts/keeper-utils.ts": {
+      "hash": "c66d1d0c8695e06e92a1c55f4b49cdbe2e27621965e85cf863d0cf333ce15f40",
+      "pulledAt": "2026-10-28T05:10:12.914Z"
+    },
+    "src/lib/keeperUtils.test.ts": {
+      "hash": "c916edeac40408229e9c47e045db78fa04b91facef4d8b2ee7beff124aae344a",
+      "pulledAt": "2026-10-28T05:10:12.925Z"
     }
   }
 }

@@ -1,0 +1,11 @@
+Code review of the scheduling UI found these bugs. Fix them; do not change contracts.
+
+1. Monthly drift (src/lib/schedule.ts): addInterval is applied to the previous (already clamped) date, so a schedule on Jan 31 goes Jan 31 → Feb 28 → Mar 28 → Apr 28. Compute payment i from the FIRST date: same day-of-month and time as the first payment, month + i, clamped to the last day of that month (Jan 31 → Feb 28/29 → Mar 31 → Apr 30). Weekly/biweekly = first + i×7/14 days in local time (DST-safe via setDate). Add vitest cases for Jan 31 ×4, Feb 29 in a leap year ×13, Aug 31 → Sep 30 → Oct 31, and a DST-crossing weekly schedule keeping the same local wall-clock time.
+2. Stale "in the future" check (ScheduleForm.tsx): it compares against mountTime. Validate against Date.now() at render and again right before signing, requiring the first payment to be at least 2 minutes ahead; if it is not, block submit with a clear message ("Pick a time at least 2 minutes from now").
+3. Simulate first (StepScheduleCreate.tsx): call publicClient.simulateContract for createSchedule before writeContract (same as StepDistribute), and show decoded custom-error messages for every ScheduledSplit error (InvalidDueTimes, DepositMismatch, AllocationRoundsToZero, …) plus ERC20InsufficientAllowance/Balance.
+4. Event decoding: replace the topics[1] heuristic with parseEventLogs({ abi: SCHEDULED_SPLIT_ABI, eventName: 'ScheduleCreated', logs: receipt.logs }) filtered to the ScheduledSplit address; same for ScheduledPaymentExecuted / ScheduleCancelled on /schedules and /s/:id.
+5. `chain: null` disables viem's chain-mismatch guard. In StepScheduleCreate, Schedules.tsx, ScheduleDetail.tsx and Deploy.tsx pass the active Arc chain object instead, and if the wallet is on another chain or walletClient is unavailable, show the WrongNetworkBanner / an explicit "Switch to {network}" message rather than returning silently.
+6. Revert message: "Transaction reverted" must not guess at allowance; decode the revert reason if available, else link the explorer.
+7. Cancel confirm dialog must state the exact refund (amountPerPayment × remaining) and that due-but-unpaid payments are refunded too.
+
+Then run vitest, typecheck, lint and build; report results.

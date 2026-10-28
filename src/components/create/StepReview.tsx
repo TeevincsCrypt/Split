@@ -7,14 +7,18 @@ import { formatAddress } from '@/lib/utils'
 import { ACTIVE_NETWORK } from '@/config/networks'
 import { SPLIT_DISTRIBUTOR_ABI } from '@/abi/SplitDistributor'
 import { getAddress } from 'viem'
+import type { ScheduleFormState } from './ScheduleForm'
+import { computeDueTimes } from '@/lib/schedule'
 
 interface Props {
   draft: SplitDraft
   onBack: () => void
   onNext: () => void
+  /** When set, shows schedule summary instead of distribute summary */
+  scheduleForm?: ScheduleFormState
 }
 
-export default function StepReview({ draft, onBack, onNext }: Props) {
+export default function StepReview({ draft, onBack, onNext, scheduleForm }: Props) {
   const [confirmed, setConfirmed] = useState(false)
   const [gasEstimate, setGasEstimate] = useState<bigint | null | 'error'>('error')
   const [estimating, setEstimating] = useState(false)
@@ -45,10 +49,13 @@ export default function StepReview({ draft, onBack, onNext }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const schedComputed = scheduleForm ? computeDueTimes(scheduleForm) : null
+  const totalDeposit = total && schedComputed ? total * BigInt(schedComputed.dueTimes.length) : null
+
   return (
     <div className="flex flex-col gap-4">
       <h2 className="display font-bold text-xl" style={{ color: 'var(--ink)', letterSpacing: '-0.03em' }}>
-        Review distribution
+        {scheduleForm ? 'Review schedule' : 'Review distribution'}
       </h2>
 
       {/* Big total card */}
@@ -56,14 +63,21 @@ export default function StepReview({ draft, onBack, onNext }: Props) {
         className="card p-5 flex flex-col items-center gap-1 text-center"
         style={{ background: 'var(--accent-dim)', border: '1px solid var(--accent-mid)' }}
       >
-        <span className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--accent)' }}>Total</span>
+        <span className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--accent)' }}>
+          {scheduleForm ? 'Total deposit' : 'Total'}
+        </span>
         <div className="flex items-baseline gap-1 mt-1">
           <span className="text-sm font-bold" style={{ color: 'var(--accent)' }}>$</span>
           <span className="display font-extrabold text-4xl nums" style={{ color: 'var(--accent)', letterSpacing: '-0.04em' }}>
-            {formatUsdcAmount(total ?? 0n, 2)}
+            {formatUsdcAmount(scheduleForm ? (totalDeposit ?? 0n) : (total ?? 0n), 2)}
           </span>
           <span className="text-base font-bold" style={{ color: 'var(--accent)' }}>USDC</span>
         </div>
+        {scheduleForm && schedComputed && (
+          <span className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
+            {schedComputed.dueTimes.length} payment{schedComputed.dueTimes.length !== 1 ? 's' : ''} × {formatUsdcAmount(total ?? 0n)} USDC each
+          </span>
+        )}
         <span className="text-xs font-semibold mt-1" style={{ color: 'var(--accent)' }}>
           {rows.length} recipient{rows.length !== 1 ? 's' : ''} · {name}
         </span>

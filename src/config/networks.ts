@@ -22,6 +22,10 @@ export interface NetworkConfig {
   /** null when contract not configured; configError will be non-null in that case */
   distributorAddress: `0x${string}` | null
   deployBlock: bigint
+  /** ScheduledSplit contract address — null when not configured (feature is hidden) */
+  scheduledSplitAddress: `0x${string}` | null
+  /** Block at which ScheduledSplit was deployed (getLogs fromBlock) */
+  scheduledSplitDeployBlock: bigint
   /** Human-readable error if the config is invalid (e.g. bad address) */
   configError: string | null
 }
@@ -62,6 +66,8 @@ function buildNetworkConfig(chainId: number): Omit<NetworkConfig, 'distributorAd
     usdcAddress: usdc.address as `0x${string}`,
     usdcDecimals: usdc.decimals,
     isTestnet: chain.isTestnet,
+    scheduledSplitAddress: null,
+    scheduledSplitDeployBlock: 0n,
   }
 }
 
@@ -102,10 +108,17 @@ function resolveRpcUrl(defaultUrl: string, defaults: string[]): { url: string; u
   return { url: defaultUrl, urls: defaults, configError: null }
 }
 
+function parseSafeBlock(raw: string | undefined): bigint {
+  if (!raw) return 0n
+  try { return BigInt(raw.trim()) } catch { return 0n }
+}
+
 function resolveActiveNetwork(): NetworkConfig {
   const networkEnv: string = (import.meta.env.VITE_SPLIT_NETWORK as string | undefined) ?? ''
   const addressEnv: string | undefined = import.meta.env.VITE_SPLIT_DISTRIBUTOR_ADDRESS as string | undefined
   const deployBlockEnv: string | undefined = import.meta.env.VITE_SPLIT_DEPLOY_BLOCK as string | undefined
+  const scheduledAddrEnv: string | undefined = import.meta.env.VITE_SCHEDULED_SPLIT_ADDRESS as string | undefined
+  const scheduledBlockEnv: string | undefined = import.meta.env.VITE_SCHEDULED_SPLIT_DEPLOY_BLOCK as string | undefined
 
   // Validate VITE_SPLIT_NETWORK — reject unknown values
   if (networkEnv !== 'testnet' && networkEnv !== 'mainnet' && networkEnv !== '') {
@@ -114,6 +127,8 @@ function resolveActiveNetwork(): NetworkConfig {
       ...base,
       distributorAddress: null,
       deployBlock: 0n,
+      scheduledSplitAddress: null,
+      scheduledSplitDeployBlock: 0n,
       configError: `Unknown VITE_SPLIT_NETWORK value "${networkEnv}". Must be "testnet" or "mainnet".`,
     }
   }
@@ -127,17 +142,22 @@ function resolveActiveNetwork(): NetworkConfig {
       ...base,
       distributorAddress: null,
       deployBlock: 0n,
+      scheduledSplitAddress: null,
+      scheduledSplitDeployBlock: 0n,
       configError: `VITE_SPLIT_DISTRIBUTOR_ADDRESS "${trimmedAddress}" is not a valid EVM address.`,
     }
   }
 
-  // Parse VITE_SPLIT_DEPLOY_BLOCK safely
-  let deployBlock = 0n
-  if (deployBlockEnv) {
-    try {
-      deployBlock = BigInt(deployBlockEnv.trim())
-    } catch {
-      deployBlock = 0n
+  // Validate VITE_SCHEDULED_SPLIT_ADDRESS (optional — feature hidden when absent)
+  const trimmedSchedAddr = scheduledAddrEnv?.trim() ?? ''
+  if (trimmedSchedAddr && !isAddress(trimmedSchedAddr)) {
+    return {
+      ...base,
+      distributorAddress: trimmedAddress ? (trimmedAddress as `0x${string}`) : null,
+      deployBlock: parseSafeBlock(deployBlockEnv),
+      scheduledSplitAddress: null,
+      scheduledSplitDeployBlock: 0n,
+      configError: `VITE_SCHEDULED_SPLIT_ADDRESS "${trimmedSchedAddr}" is not a valid EVM address.`,
     }
   }
 
@@ -150,6 +170,8 @@ function resolveActiveNetwork(): NetworkConfig {
       rpcUrls,
       distributorAddress: null,
       deployBlock: 0n,
+      scheduledSplitAddress: null,
+      scheduledSplitDeployBlock: 0n,
       configError: rpcError,
     }
   }
@@ -159,7 +181,9 @@ function resolveActiveNetwork(): NetworkConfig {
     rpcUrl,
     rpcUrls,
     distributorAddress: trimmedAddress ? (trimmedAddress as `0x${string}`) : null,
-    deployBlock,
+    deployBlock: parseSafeBlock(deployBlockEnv),
+    scheduledSplitAddress: trimmedSchedAddr ? (trimmedSchedAddr as `0x${string}`) : null,
+    scheduledSplitDeployBlock: parseSafeBlock(scheduledBlockEnv),
     configError: null,
   }
 }

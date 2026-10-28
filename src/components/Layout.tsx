@@ -12,6 +12,7 @@ interface LayoutProps { children: React.ReactNode }
 const NAV_LINKS = [
   { to: '/dashboard',    label: 'Dashboard' },
   { to: '/create',       label: 'Create split' },
+  { to: '/schedules',    label: 'Schedules' },
   { to: '/recipients',   label: 'Recipients' },
   { to: '/activity',     label: 'Activity' },
   { to: '/how-it-works', label: 'How it works' },

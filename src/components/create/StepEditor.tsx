@@ -19,6 +19,8 @@ interface Props {
   onTouch: (patch: Partial<TouchedState>) => void
   onChange: (d: SplitDraft) => void
   onNext: () => void
+  /** When true, changes the Review button label for the schedule flow */
+  scheduleMode?: boolean
 }
 
 /** Which fields have been visited (blurred) by the user. */
@@ -45,7 +47,7 @@ export function initTouched(nRows: number): TouchedState {
 const EXAMPLE_BPS = [4000, 2500, 2000, 1500]
 const EXAMPLE_LABELS = ['Alice', 'Bob', 'Carol', 'Dave']
 
-export default function StepEditor({ draft, touched, onTouch, onChange, onNext }: Props) {
+export default function StepEditor({ draft, touched, onTouch, onChange, onNext, scheduleMode }: Props) {
   // Refs for focusing first error field
   const nameRef = useRef<HTMLInputElement>(null)
   const amountRef = useRef<HTMLInputElement>(null)
@@ -670,7 +672,7 @@ export default function StepEditor({ draft, touched, onTouch, onChange, onNext }
             border: `1.5px solid ${validation.valid ? 'var(--accent)' : 'var(--border)'}`,
           }}
         >
-          Review distribution →
+          {scheduleMode ? 'Set recipients →' : 'Review distribution →'}
         </button>
         {disableReason && (
           <p className="text-center text-xs font-medium" style={{ color: 'var(--subtle)' }}>

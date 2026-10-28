@@ -11,6 +11,8 @@ const Activity = lazy(() => import('@/pages/Activity'))
 const HowItWorks = lazy(() => import('@/pages/HowItWorks'))
 const Deploy = lazy(() => import('@/pages/Deploy'))
 const Recipients = lazy(() => import('@/pages/Recipients'))
+const Schedules = lazy(() => import('@/pages/Schedules'))
+const ScheduleDetail = lazy(() => import('@/pages/ScheduleDetail'))
 
 function PageLoader() {
   return (
@@ -57,6 +59,14 @@ export default function App() {
           <Route
             path="/recipients"
             element={<Layout><Recipients /></Layout>}
+          />
+          <Route
+            path="/schedules"
+            element={<Layout><Schedules /></Layout>}
+          />
+          <Route
+            path="/s/:id"
+            element={<Layout><ScheduleDetail /></Layout>}
           />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

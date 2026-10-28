@@ -1,13 +1,16 @@
+import { useState } from 'react'
 import { useAccount, useReadContract } from 'wagmi'
 import { erc20Abi } from 'viem'
 import { Link } from 'react-router-dom'
-import { Plus, ArrowUpRight, Activity, RefreshCw, Lock } from 'lucide-react'
+import { Plus, ArrowUpRight, Activity, RefreshCw, Lock, Calendar, Clock } from 'lucide-react'
 import ConnectPrompt from '@/components/ConnectPrompt'
 import ContractNotConfigured from '@/components/ContractNotConfigured'
 import { ACTIVE_NETWORK } from '@/config/networks'
 import { formatUsdcAmount } from '@/lib/allocation'
 import { formatAddress, buildExplorerAddress } from '@/lib/utils'
 import { useDistributionHistory } from '@/hooks/useDistributionHistory'
+import { useScheduleHistory } from '@/hooks/useScheduleHistory'
+import { formatCountdown, selectUpcomingSchedules } from '@/lib/schedule'
 
 export default function Dashboard() {
   const { address, isConnected, chainId } = useAccount()
@@ -109,6 +112,13 @@ export default function Dashboard() {
         <div className="card p-5 sm:col-span-2">
           <RecentDistributions address={address!} />
         </div>
+
+        {/* Upcoming scheduled payments — only when ScheduledSplit is configured */}
+        {ACTIVE_NETWORK.scheduledSplitAddress && (
+          <div className="card p-5 sm:col-span-2 lg:col-span-3">
+            <UpcomingPayments address={address!} />
+          </div>
+        )}
 
       </div>
     </div>
@@ -223,6 +233,86 @@ function RecentDistributions({ address }: { address: string }) {
         <p className="text-xs mt-2 text-center" style={{ color: 'var(--subtle)' }}>
           History may be partial — RPC range limit reached.
         </p>
+      )}
+    </div>
+  )
+}
+
+function UpcomingPayments({ address: _address }: { address: string }) {
+  const { schedules, loading, rpcError, retry } = useScheduleHistory()
+  const [now] = useState(() => BigInt(Math.floor(Date.now() / 1000)))
+
+  const upcoming = selectUpcomingSchedules(
+    schedules.map((s) => ({
+      id: s.id,
+      nextDueTime: s.nextDueTime,
+      cancelled: s.cancelled,
+      executed: s.executed,
+      totalPayments: s.dueTimes.length,
+    })),
+    now,
+  ).slice(0, 5)
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--subtle)' }}>
+          Upcoming payments
+        </p>
+        <Link to="/schedules" className="flex items-center gap-1 text-xs font-semibold hover:underline"
+          style={{ color: 'var(--accent)' }}>
+          All schedules <ArrowUpRight className="size-3" />
+        </Link>
+      </div>
+
+      {loading && (
+        <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--muted)' }}>
+          <RefreshCw className="size-3 animate-spin" />Loading…
+        </div>
+      )}
+
+      {rpcError && (
+        <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--danger)' }}>
+          <span>Unavailable — couldn't reach the Arc RPC.</span>
+          <button onClick={retry} className="underline">Retry</button>
+        </div>
+      )}
+
+      {!loading && !rpcError && upcoming.length === 0 && (
+        <p className="text-sm" style={{ color: 'var(--muted)' }}>No upcoming scheduled payments.</p>
+      )}
+
+      {!loading && !rpcError && upcoming.length > 0 && (
+        <div className="flex flex-col gap-2">
+          {upcoming.map((s) => {
+            const ev = schedules.find((sc) => sc.id === s.id)
+            if (!ev) return null
+            return (
+              <Link
+                key={s.id.toString()}
+                to={`/s/${s.id}`}
+                className="flex items-center justify-between py-2 border-b last:border-b-0 hover:opacity-80 transition-opacity"
+                style={{ borderColor: 'var(--border)' }}
+              >
+                <div className="flex items-center gap-2">
+                  <div className="icon-btn shrink-0" style={{ width: 32, height: 32, background: 'var(--accent-dim)', boxShadow: 'none', border: 'none' }}>
+                    <Calendar className="size-3.5" style={{ color: 'var(--accent)' }} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold" style={{ color: 'var(--ink)' }}>{ev.name}</p>
+                    <p className="text-[11px]" style={{ color: 'var(--subtle)' }}>
+                      {ev.executed}/{ev.dueTimes.length} · {formatUsdcAmount(ev.amountPerPayment)} USDC
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: 'var(--muted)' }}>
+                  <Clock className="size-3" />
+                  {formatCountdown(s.nextDueTime, now)}
+                </div>
+              </Link>
+            )
+          })}
+        </div>
       )}
     </div>
   )
