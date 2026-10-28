@@ -53,3 +53,31 @@ while (hi >= DEPLOY_BLOCK) {
   for (const r of res) { if (r === null) failed++; else found += r.length }
 }
 console.log(`\nFULL SCAN (2k chunks x8): ${chunks} chunks, ${found} events, ${failed} failed chunks, ${Date.now() - t0} ms, blocks ${head - DEPLOY_BLOCK}`)
+
+// ---------------------------------------------------------------------------
+// End-to-end check of the app's own scanner (src/lib/logScan.ts + src/config/logSources.ts)
+// ---------------------------------------------------------------------------
+const { scanLogsBackward } = await import('../src/lib/logScan')
+const { logSourcesFor } = await import('../src/config/logSources')
+const sources = logSourcesFor(5042002).map((s) => ({
+  client: createPublicClient({ transport: http(s.url, { timeout: 15_000, retryCount: 0 }) }),
+  maxRange: s.maxRange,
+}))
+const head2 = await createPublicClient({ transport: http(ENDPOINTS[0]) }).getBlockNumber()
+
+let t = Date.now()
+const all = await scanLogsBackward({ sources: sources as never, address: DISTRIBUTOR, event: EVENT, floor: DEPLOY_BLOCK, to: head2, done: (l) => l.length >= 1 })
+console.log(`\nAPP SCAN Activity: ${all.logs.length} event(s), partial=${all.partial}, ${Date.now() - t} ms`)
+for (const l of all.logs as { args: { distributionId: bigint; name: string }; transactionHash: string; blockNumber: bigint }[])
+  console.log(`  #${l.args.distributionId} "${l.args.name}" tx ${l.transactionHash} block ${l.blockNumber}`)
+
+t = Date.now()
+const one = await scanLogsBackward({ sources: sources as never, address: DISTRIBUTOR, event: EVENT, args: { distributionId: 1n }, floor: DEPLOY_BLOCK, to: head2, done: (l) => l.length > 0 })
+console.log(`APP SCAN receipt #1: ${one.logs.length} found, partial=${one.partial}, ${Date.now() - t} ms`)
+
+const SCHED = '0xf43192c85c5888c7b01fe7257efb80f6de2e17d6' as const
+const EXEC = parseAbiItem('event ScheduledPaymentExecuted(uint256 indexed id, uint32 index, address indexed executor, uint64 dueTime, uint256[] amounts)')
+t = Date.now()
+const ex = await scanLogsBackward({ sources: sources as never, address: SCHED, event: EXEC, args: { id: 3n }, floor: 69445979n, to: head2 })
+console.log(`APP SCAN schedule #3 payments: ${ex.logs.length} found, partial=${ex.partial}, ${Date.now() - t} ms`)
+for (const l of ex.logs as { args: { executor: string }; transactionHash: string }[]) console.log(`  tx ${l.transactionHash} executor ${l.args.executor}`)

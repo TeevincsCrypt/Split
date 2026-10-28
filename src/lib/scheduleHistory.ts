@@ -22,7 +22,8 @@ import {
 } from 'viem'
 import { arcTestnet } from 'viem/chains'
 import { arcMainnet } from '@/config'
-import { ACTIVE_NETWORK } from '@/config/networks'
+import { ACTIVE_NETWORK, logSourcesFor } from '@/config/networks'
+import { scanLogsBackward, type LogClient, type LogSource } from '@/lib/logScan'
 import { SCHEDULED_SPLIT_ABI } from '@/abi/ScheduledSplit'
 import { BaseError } from 'viem'
 
@@ -185,6 +186,15 @@ export async function fetchScheduleState(
 // ---------------------------------------------------------------------------
 const CHUNK = 2_000n
 
+// Event history goes to the log sources measured to accept large ranges (see logScan.ts).
+const logSources: LogSource[] = logSourcesFor(
+  ACTIVE_NETWORK.chainId,
+  import.meta.env.VITE_SPLIT_RPC_URL as string | undefined,
+).map((src) => ({
+  client: createPublicClient({ chain: _activeChain, transport: http(src.url, { timeout: 15_000, retryCount: 0 }) }) as unknown as LogClient,
+  maxRange: src.maxRange,
+}))
+
 /**
  * Fetch executed payment events for a schedule id, newest-first, 2k-block chunks.
  * Never throws — returns [] on any error.
@@ -198,33 +208,21 @@ export async function fetchExecutedEvents(
   try { head = await schedulePublicClient.getBlockNumber() }
   catch { return [] }
 
-  const results: ScheduleExecutedEvent[] = []
-  let to = head
-  while (to >= deployBlock) {
-    const from = to > CHUNK ? to - CHUNK : deployBlock
-    try {
-      const logs = await schedulePublicClient.getLogs({
-        address: contractAddress,
-        event: SCHEDULE_EXECUTED_EVENT[0],
-        args: { id: scheduleId },
-        fromBlock: from,
-        toBlock: to,
-      })
-      for (const log of logs.reverse()) {
-        results.push({
-          id: log.args.id!,
-          index: Number(log.args.index ?? 0),
-          executor: log.args.executor!,
-          dueTime: BigInt(log.args.dueTime ?? 0),
-          amounts: (log.args.amounts ?? []).map(BigInt),
-          blockNumber: log.blockNumber ?? 0n,
-          txHash: log.transactionHash,
-        })
-      }
-    } catch { /* chunk failed — skip */ }
-    if (from <= deployBlock) break
-    to = from - 1n
-  }
+  type ExecLog = { args: { id?: bigint; index?: number; executor?: Address; dueTime?: bigint; amounts?: readonly bigint[] }; blockNumber: bigint | null; transactionHash: `0x${string}` }
+  const { logs } = await scanLogsBackward<ExecLog>({
+    sources: logSources, address: contractAddress, event: SCHEDULE_EXECUTED_EVENT[0],
+    args: { id: scheduleId }, floor: deployBlock, to: head,
+  })
+  const results: ScheduleExecutedEvent[] = logs.map((log) => ({
+    id: log.args.id!,
+    index: Number(log.args.index ?? 0),
+    executor: log.args.executor!,
+    dueTime: BigInt(log.args.dueTime ?? 0),
+    amounts: (log.args.amounts ?? []).map(BigInt),
+    blockNumber: log.blockNumber ?? 0n,
+    txHash: log.transactionHash,
+  }))
+  results.sort((x, y) => y.index - x.index)
   return results
 }
 
@@ -241,29 +239,14 @@ export async function fetchCancelledEvent(
   try { head = await schedulePublicClient.getBlockNumber() }
   catch { return null }
 
-  let to = head
-  while (to >= deployBlock) {
-    const from = to > CHUNK ? to - CHUNK : deployBlock
-    try {
-      const logs = await schedulePublicClient.getLogs({
-        address: contractAddress,
-        event: SCHEDULE_CANCELLED_EVENT[0],
-        args: { id: scheduleId },
-        fromBlock: from,
-        toBlock: to,
-      })
-      if (logs.length > 0) {
-        const log = logs[logs.length - 1]
-        return {
-          id: log.args.id!,
-          refund: BigInt(log.args.refund ?? 0),
-          blockNumber: log.blockNumber ?? 0n,
-          txHash: log.transactionHash,
-        }
-      }
-    } catch { /* chunk failed — skip */ }
-    if (from <= deployBlock) break
-    to = from - 1n
+  type CancelLog = { args: { id?: bigint; refund?: bigint }; blockNumber: bigint | null; transactionHash: `0x${string}` }
+  const { logs } = await scanLogsBackward<CancelLog>({
+    sources: logSources, address: contractAddress, event: SCHEDULE_CANCELLED_EVENT[0],
+    args: { id: scheduleId }, floor: deployBlock, to: head, done: (l) => l.length > 0,
+  })
+  if (logs.length > 0) {
+    const log = logs[0]
+    return { id: log.args.id!, refund: BigInt(log.args.refund ?? 0), blockNumber: log.blockNumber ?? 0n, txHash: log.transactionHash }
   }
   return null
 }

@@ -9,7 +9,8 @@
 import { createPublicClient, fallback, http, parseAbiItem, decodeEventLog } from 'viem'
 import { arcTestnet } from 'viem/chains'
 import { arcMainnet } from '@/config'
-import { ACTIVE_NETWORK } from '@/config/networks'
+import { ACTIVE_NETWORK, logSourcesFor } from '@/config/networks'
+import { scanLogsBackward, type LogClient, type LogSource } from '@/lib/logScan'
 import { SPLIT_DISTRIBUTOR_ABI } from '@/abi/SplitDistributor'
 
 export interface DistributionEvent {
@@ -100,13 +101,16 @@ async function scanRange(
 
 type RawLogs = Awaited<ReturnType<typeof publicClient.getLogs>>
 
-const SCAN_CONCURRENCY = 8
+// History reads go to the log sources measured to accept large ranges (see logScan.ts).
+const logSources: LogSource[] = logSourcesFor(
+  ACTIVE_NETWORK.chainId,
+  import.meta.env.VITE_SPLIT_RPC_URL as string | undefined,
+).map((s) => ({
+  client: createPublicClient({ chain: activeChain, transport: http(s.url, { timeout: 15_000, retryCount: 0 }) }) as unknown as LogClient,
+  maxRange: s.maxRange,
+}))
 
-/**
- * Scan backwards from `to` towards `floor` in CHUNK_SIZE ranges, SCAN_CONCURRENCY chunks
- * at a time, until `done(logsSoFar)` is true or the floor is reached. A chunk that fails
- * is retried once; if it fails again the result is marked partial and the scan continues.
- */
+/** Scan backwards from `to` to `floor` until `done(logs)`; see scanLogsBackward. */
 async function scanBackward(
   contractAddress: `0x${string}`,
   floor: bigint,
@@ -114,33 +118,11 @@ async function scanBackward(
   args: Record<string, unknown>,
   done: (logs: RawLogs) => boolean,
 ): Promise<{ logs: RawLogs; partial: boolean; scannedFrom: bigint }> {
-  const logs: RawLogs = []
-  let partial = false
-  let hi = to
-  let scannedFrom = to + 1n
-  const fetchChunk = async (start: bigint, end: bigint): Promise<RawLogs | null> => {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        return await publicClient.getLogs({ address: contractAddress, event: distributedEventAbi, fromBlock: start, toBlock: end, args })
-      } catch { /* retry once */ }
-    }
-    return null
-  }
-  while (hi >= floor && !done(logs)) {
-    const ranges: [bigint, bigint][] = []
-    for (let i = 0; i < SCAN_CONCURRENCY && hi >= floor; i++) {
-      const lo = hi - CHUNK_SIZE + 1n > floor ? hi - CHUNK_SIZE + 1n : floor
-      ranges.push([lo, hi])
-      hi = lo - 1n
-    }
-    const results = await Promise.all(ranges.map(([a, b]) => fetchChunk(a, b)))
-    for (const r of results) {
-      if (r === null) partial = true
-      else logs.push(...r)
-    }
-    scannedFrom = ranges[ranges.length - 1][0]
-  }
-  return { logs, partial, scannedFrom }
+  const r = await scanLogsBackward<RawLogs[number]>({
+    sources: logSources, address: contractAddress, event: distributedEventAbi, args, floor, to,
+    done: (l) => done(l),
+  })
+  return { logs: r.logs, partial: r.partial, scannedFrom: r.scannedFrom }
 }
 
 async function decodeLogs(

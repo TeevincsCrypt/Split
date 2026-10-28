@@ -39,14 +39,18 @@ const ARC_MAINNET_CHAIN_ID = 5042
  * both keeps reads working whichever one a browser can reach.
  */
 const EXTRA_PUBLIC_RPCS: Record<number, string[]> = {
+  // Ordered by measured reliability (scripts/rpc-probe.ts). rpc.testnet.arc.network
+  // rejected every call from CI, so it is last.
   [ARC_TESTNET_CHAIN_ID]: [
-    'https://rpc.testnet.arc.network',
     'https://rpc.blockdaemon.testnet.arc.io',
-    'https://rpc.drpc.testnet.arc.io',
     'https://rpc.quicknode.testnet.arc.io',
+    'https://rpc.drpc.testnet.arc.io',
+    'https://rpc.testnet.arc.network',
   ],
   [ARC_MAINNET_CHAIN_ID]: [],
 }
+
+export { logSourcesFor } from './logSources'
 
 function withFallbacks(primary: string, chainId: number): string[] {
   return [...new Set([primary, ...(EXTRA_PUBLIC_RPCS[chainId] ?? [])])]
