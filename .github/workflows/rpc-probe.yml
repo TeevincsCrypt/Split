@@ -25,3 +25,6 @@ jobs:
       - name: Probe
         timeout-minutes: 5
         run: bun run scripts/rpc-probe.ts
+      - name: Probe mainnet (read-only)
+        timeout-minutes: 3
+        run: bun run scripts/rpc-probe-mainnet.ts
