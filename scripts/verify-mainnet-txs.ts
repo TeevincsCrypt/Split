@@ -96,5 +96,11 @@ for (const raw of addrs) {
       if (c && c !== '0x') hi = mid; else lo = mid + 1n
     }
     console.log(`deploy block ${lo}`)
+    const blk = await client.getBlock({ blockNumber: lo, includeTransactions: true })
+    for (const tx of blk.transactions) {
+      if (tx.to !== null) continue
+      const rc = await client.getTransactionReceipt({ hash: tx.hash })
+      if (rc.contractAddress?.toLowerCase() === addr.toLowerCase()) console.log(`deploy tx ${tx.hash}  deployer ${tx.from}`)
+    }
   } catch (e) { console.log(`FAILED ${(e as Error).message.split('\n')[0]}`) }
 }
