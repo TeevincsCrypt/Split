@@ -4,6 +4,7 @@ import { useAccount, useReadContract, useWriteContract, useWaitForTransactionRec
 import { erc20Abi } from 'viem'
 import { type SplitDraft } from '@/pages/CreateSplit'
 import { ACTIVE_NETWORK } from '@/config/networks'
+import { activeArcChain } from '@/config'
 import { formatUsdcAmount } from '@/lib/allocation'
 import { buildExplorerTx } from '@/lib/utils'
 
@@ -77,6 +78,7 @@ export default function StepApprove({ draft, onBack, onNext }: Props) {
       functionName: 'approve',
       args: [contractAddress, total],
       chainId: ACTIVE_NETWORK.chainId,
+      chain: activeArcChain,
     })
   }
 

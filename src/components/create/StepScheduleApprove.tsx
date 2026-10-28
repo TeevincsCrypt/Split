@@ -8,6 +8,7 @@ import { useAccount, useReadContract, useWriteContract, useWaitForTransactionRec
 import { erc20Abi } from 'viem'
 import { type SplitDraft } from '@/pages/CreateSplit'
 import { ACTIVE_NETWORK } from '@/config/networks'
+import { activeArcChain } from '@/config'
 import { formatUsdcAmount } from '@/lib/allocation'
 import { buildExplorerTx } from '@/lib/utils'
 import type { ScheduleFormState } from './ScheduleForm'
@@ -94,6 +95,7 @@ export default function StepScheduleApprove({ draft, scheduleForm, onBack, onNex
       functionName: 'approve',
       args: [contractAddress, totalDeposit],
       chainId: ACTIVE_NETWORK.chainId,
+      chain: activeArcChain,
     })
   }
 

@@ -4,6 +4,7 @@ import { useAccount, useWriteContract, usePublicClient } from 'wagmi'
 import { parseEventLogs, getAddress, BaseError, ContractFunctionRevertedError } from 'viem'
 import { type SplitDraft } from '@/pages/CreateSplit'
 import { ACTIVE_NETWORK } from '@/config/networks'
+import { activeArcChain } from '@/config'
 import { SPLIT_DISTRIBUTOR_ABI } from '@/abi/SplitDistributor'
 import { formatUsdcAmount } from '@/lib/allocation'
 import { buildExplorerTx } from '@/lib/utils'
@@ -143,6 +144,7 @@ export default function StepDistribute({ draft, onBack, onDistributed }: Props) 
         functionName: 'distribute',
         args: [trimmedName, total, recipients, bpsValues as never],
         chainId: ACTIVE_NETWORK.chainId,
+        chain: activeArcChain,
       })
     } catch (err: unknown) {
       const msg = decodeError(err)
