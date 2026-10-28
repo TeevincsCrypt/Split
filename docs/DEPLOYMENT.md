@@ -82,4 +82,4 @@ The testnet contract is already deployed (by Arc Studio):
    Every other branch gets its own preview URL.
 5. **After the mainnet deploy:** change the variables to `mainnet`, the new address and the new deploy block,
    then **Redeploy**. Open `/deploy` on your own machine (`bun run dev`), not on the public site.
-6. Put the Vercel URL in `README.md` and `docs/SUBMISSION.md` ("Live app").
+6. The live site is https://paywsplit.vercel.app (linked from `README.md` and `docs/SUBMISSION.md`).

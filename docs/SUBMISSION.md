@@ -53,4 +53,4 @@ Tailwind · wagmi v2 · viem v2.
 ## Links
 - Code: https://github.com/teevincscrypt/split
 - Demo video: _add link_
-- Live app: _add link after hosting_
+- Live app: https://paywsplit.vercel.app

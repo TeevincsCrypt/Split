@@ -5,6 +5,8 @@
 Split lets teams, project owners, DAOs, freelancers and businesses distribute USDC to many
 recipients in one transparent, atomic onchain transaction on [Arc](https://arc.io).
 
+**Live app:** https://paywsplit.vercel.app
+
 > **Built in Arc Studio:** https://studio.arc.io/app/767489e9-b81c-4ccf-a5df-94881d408a4d
 > The contracts and app were generated with the Arc Studio CLI (`arc-studio run --session split`) and
 > pulled into this repo with `arc-studio pull`. Every prompt is in [`arc-studio/prompts/`](arc-studio/prompts).
