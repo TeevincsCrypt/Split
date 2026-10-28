@@ -102,6 +102,37 @@ GitHub schedules are not guaranteed to fire exactly on the cron expression. A 5-
 
 ---
 
+## Step 5 (recommended): reliable timing with an external trigger
+
+GitHub's own `schedule:` trigger is best-effort. On a busy day, frequent schedules like every
+5 minutes can be delayed for hours or skipped entirely, so payday would come late. A free
+external scheduler can instead call GitHub's "run workflow" API every minute. GitHub starts
+manually dispatched runs within seconds. The keeper only executes payments that are already due,
+so extra runs are harmless; each one exits in about 20 seconds when nothing is due.
+
+1. **Create a fine-grained GitHub token.** Go to GitHub → Settings → Developer settings →
+   Personal access tokens → **Fine-grained tokens** → Generate new token.
+   - Repository access: **Only select repositories** → `TeevincsCrypt/Split`
+   - Permissions → Repository permissions → **Actions: Read and write** (nothing else)
+   - Expiration: pick a date after the hackathon and note it; the trigger stops working when the token expires.
+2. **Create a cron job** at https://cron-job.org (free account) → Create cronjob:
+   - URL: `https://api.github.com/repos/TeevincsCrypt/Split/actions/workflows/keeper.yml/dispatches`
+   - Schedule: every **1 minute**
+   - Advanced → Request method: **POST**
+   - Headers:
+     - `Authorization: Bearer <your fine-grained token>`
+     - `Accept: application/vnd.github+json`
+     - `X-GitHub-Api-Version: 2022-11-28`
+   - Request body: `{"ref":"main"}`
+3. Save, then use **Test run**. A `204` response means it worked, and a new run appears under
+   **Actions → Keeper** within seconds.
+
+Keep the `schedule:` line in `keeper.yml` as a backup. The `concurrency: keeper` setting means
+overlapping triggers never run the bot twice at once.
+
+What the token can do if it leaks: start, re-run or cancel workflow runs on this repo. It can't
+read the keeper's secrets, move funds, or push code. Revoke it in GitHub if in doubt.
+
 ## Dry run mode
 
 Set `DRY_RUN=true` in the environment (or choose `dry_run = true` in `workflow_dispatch`) to discover and simulate due payments without sending any transactions. Useful for:

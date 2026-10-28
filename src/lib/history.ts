@@ -1,7 +1,8 @@
 /**
  * Reads Distributed events from the chain via getLogs in chunked ranges.
- * Strategy: newest-first bounded initial window (last INITIAL_WINDOW blocks from head).
- * Callers can extend backwards via `fetchOlderHistory`.
+ * Strategy: read distributionCount(), then scan backwards from head in parallel
+ * 2,000-block chunks until every distribution is found (or the deploy block is reached).
+ * `fetchOlderHistory` remains for the rare case where a chunk failed.
  * Receipt page uses indexed distributionId topic filter for fast single-event lookup.
  */
 
@@ -97,6 +98,51 @@ async function scanRange(
   return { logs: rawLogs, partial }
 }
 
+type RawLogs = Awaited<ReturnType<typeof publicClient.getLogs>>
+
+const SCAN_CONCURRENCY = 8
+
+/**
+ * Scan backwards from `to` towards `floor` in CHUNK_SIZE ranges, SCAN_CONCURRENCY chunks
+ * at a time, until `done(logsSoFar)` is true or the floor is reached. A chunk that fails
+ * is retried once; if it fails again the result is marked partial and the scan continues.
+ */
+async function scanBackward(
+  contractAddress: `0x${string}`,
+  floor: bigint,
+  to: bigint,
+  args: Record<string, unknown>,
+  done: (logs: RawLogs) => boolean,
+): Promise<{ logs: RawLogs; partial: boolean; scannedFrom: bigint }> {
+  const logs: RawLogs = []
+  let partial = false
+  let hi = to
+  let scannedFrom = to + 1n
+  const fetchChunk = async (start: bigint, end: bigint): Promise<RawLogs | null> => {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        return await publicClient.getLogs({ address: contractAddress, event: distributedEventAbi, fromBlock: start, toBlock: end, args })
+      } catch { /* retry once */ }
+    }
+    return null
+  }
+  while (hi >= floor && !done(logs)) {
+    const ranges: [bigint, bigint][] = []
+    for (let i = 0; i < SCAN_CONCURRENCY && hi >= floor; i++) {
+      const lo = hi - CHUNK_SIZE + 1n > floor ? hi - CHUNK_SIZE + 1n : floor
+      ranges.push([lo, hi])
+      hi = lo - 1n
+    }
+    const results = await Promise.all(ranges.map(([a, b]) => fetchChunk(a, b)))
+    for (const r of results) {
+      if (r === null) partial = true
+      else logs.push(...r)
+    }
+    scannedFrom = ranges[ranges.length - 1][0]
+  }
+  return { logs, partial, scannedFrom }
+}
+
 async function decodeLogs(
   rawLogs: Awaited<ReturnType<typeof publicClient.getLogs>>,
 ): Promise<DistributionEvent[]> {
@@ -159,20 +205,28 @@ export async function fetchHistory(opts: FetchHistoryOptions = {}): Promise<Fetc
   if (!contractAddress) return { events: [], partial: false, rpcError: false, scannedFrom: 0n, chainHead: 0n }
 
   let chainHead: bigint
+  let total: bigint
   try {
-    chainHead = await publicClient.getBlockNumber()
+    ;[chainHead, total] = await Promise.all([
+      publicClient.getBlockNumber(),
+      publicClient.readContract({ address: contractAddress, abi: SPLIT_DISTRIBUTOR_ABI, functionName: 'distributionCount' }),
+    ])
   } catch {
     return { events: [], partial: false, rpcError: true, scannedFrom: 0n, chainHead: 0n }
   }
 
   const deployBlock = ACTIVE_NETWORK.deployBlock
-  const windowFrom = chainHead > INITIAL_WINDOW ? chainHead - INITIAL_WINDOW : deployBlock
-  const from = opts.fromBlock ?? (windowFrom > deployBlock ? windowFrom : deployBlock)
-  const to = opts.toBlock ?? chainHead
+  if (total === 0n) return { events: [], partial: false, rpcError: false, scannedFrom: deployBlock, chainHead }
 
-  const { logs, partial } = await scanRange(contractAddress, from, to, opts.payer, opts.onProgress)
-  const events = await decodeLogs(logs)
-  return { events, partial, rpcError: false, scannedFrom: from, chainHead }
+  // Scan all payers (so we can stop once every distribution is found), filter by payer after.
+  const { logs, partial, scannedFrom } = await scanBackward(
+    contractAddress, deployBlock, opts.toBlock ?? chainHead, {}, (found) => BigInt(found.length) >= total,
+  )
+  const wanted = opts.payer
+    ? logs.filter((l) => (l as { args?: { payer?: string } }).args?.payer?.toLowerCase() === opts.payer!.toLowerCase())
+    : logs
+  const events = await decodeLogs(wanted)
+  return { events, partial, rpcError: false, scannedFrom: partial ? scannedFrom : deployBlock, chainHead }
 }
 
 /**
@@ -231,18 +285,10 @@ export async function fetchEventById(
     return { event: null, rpcError: true }
   }
 
-  try {
-    const logs = await publicClient.getLogs({
-      address: contractAddress,
-      event: distributedEventAbi,
-      fromBlock: ACTIVE_NETWORK.deployBlock,
-      toBlock: chainHead,
-      args: { distributionId },
-    })
-    if (logs.length === 0) return { event: null, rpcError: false }
-    const events = await decodeLogs(logs)
-    return { event: events[0] ?? null, rpcError: false }
-  } catch {
-    return { event: null, rpcError: true }
-  }
+  const { logs, partial } = await scanBackward(
+    contractAddress, ACTIVE_NETWORK.deployBlock, chainHead, { distributionId }, (found) => found.length > 0,
+  )
+  if (logs.length === 0) return { event: null, rpcError: partial }
+  const events = await decodeLogs(logs)
+  return { event: events[0] ?? null, rpcError: false }
 }
