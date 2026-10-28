@@ -40,11 +40,17 @@ is paid or nothing moves. Every payout is a `Distributed` event that anyone can 
 |---|---|---|
 | Arc Testnet (5042002) · SplitDistributor | `0x43a159af83f4c836940e2e74c8a29ae677c39498` | `0xa01d2a87258d79122d210787029bd968b18f874cc11dd0d2f978e23d53f595dd` |
 | Arc Testnet (5042002) · ScheduledSplit | `0xf43192c85c5888c7b01fe7257efb80f6de2e17d6` | `0x74794a12a72da408b533c7cb167850d90d6e6e4a0c92a01ed47f218cc8cdea14` |
-| Arc Mainnet (5042) | _not deployed yet_ | _—_ |
+| **Arc Mainnet (5042) · SplitDistributor** | `0xb836ee72cddf83ab7df09db97f6f09507f46ff8f` | `0xeedb8919abb6c16405c604a31f4d94a2498e401b01c8508778b7e877942f5e33` |
+| **Arc Mainnet (5042) · ScheduledSplit** | `0x32ef22b2848c2161a075a2bfd4a74a3db3e362fb` | `0xd60939accbbf2cbeadd576542dfc9ce2bd345d3fd08c5f395776cd6d065a5e17` |
 
 USDC: `0x3600000000000000000000000000000000000000` (ERC-20 view, 6 decimals; native gas token on Arc).
 
-Example mainnet distribution tx: _none yet. Add only after a confirmed transaction._
+Both mainnet contracts were deployed by the project owner's wallet. Their onchain code matches the Arc Studio build.
+
+Real-USDC mainnet transactions (see [`MAINNET_PROOF.md`](MAINNET_PROOF.md)):
+- Instant distribution: `0x082c1175335f8d17b77f40cc84faa240dde7b89056b95b632f63d50a5a5db0a4` (0.50 USDC, split 50/50).
+- Scheduled payment, released by the keeper bot 11 seconds after its due time:
+  `0xe358f7e6fa1cffb071279f32f41472ceb703c5124597e6621177808eb3bcde44`.
 
 ## Tech
 Solidity 0.8.28 · OpenZeppelin 5 (SafeERC20, ReentrancyGuard) · Foundry · React 18 · Vite · TypeScript ·

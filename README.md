@@ -57,12 +57,19 @@ Source: Arc Studio's onchain registry (`src/onchain-facts.ts`). On Arc, USDC is 
 
 ## Deployments
 
-| Network | SplitDistributor | Deploy tx | Deployed by |
-|---|---|---|---|
-| Arc Testnet | [`0x43a159af83f4c836940e2e74c8a29ae677c39498`](https://explorer.testnet.arc.io/address/0x43a159af83f4c836940e2e74c8a29ae677c39498) | `0xa01d2a87258d79122d210787029bd968b18f874cc11dd0d2f978e23d53f595dd` (block 69249404) | Arc Studio |
-| Arc Mainnet | **Not deployed yet** | — | Project owner via `/deploy` |
+| Network | Contract | Address | Deploy tx | Deployed by |
+|---|---|---|---|---|
+| **Arc Mainnet** | SplitDistributor | [`0xb836ee72cddf83ab7df09db97f6f09507f46ff8f`](https://explorer.arc.io/address/0xb836ee72cddf83ab7df09db97f6f09507f46ff8f) | `0xeedb8919abb6c16405c604a31f4d94a2498e401b01c8508778b7e877942f5e33` (block 28366986) | Project owner via `/deploy` |
+| **Arc Mainnet** | ScheduledSplit | [`0x32ef22b2848c2161a075a2bfd4a74a3db3e362fb`](https://explorer.arc.io/address/0x32ef22b2848c2161a075a2bfd4a74a3db3e362fb) | `0xd60939accbbf2cbeadd576542dfc9ce2bd345d3fd08c5f395776cd6d065a5e17` (block 28367352) | Project owner via `/deploy` |
+| Arc Testnet | SplitDistributor | [`0x43a159af83f4c836940e2e74c8a29ae677c39498`](https://explorer.testnet.arc.io/address/0x43a159af83f4c836940e2e74c8a29ae677c39498) | `0xa01d2a87258d79122d210787029bd968b18f874cc11dd0d2f978e23d53f595dd` (block 69249404) | Arc Studio |
+| Arc Testnet | ScheduledSplit | [`0xf43192c85c5888c7b01fe7257efb80f6de2e17d6`](https://explorer.testnet.arc.io/address/0xf43192c85c5888c7b01fe7257efb80f6de2e17d6) | `0x74794a12a72da408b533c7cb167850d90d6e6e4a0c92a01ed47f218cc8cdea14` (block 69445979) | Arc Studio |
 
-Example confirmed distribution: _none recorded yet_ (see [`docs/TESTNET_PROOF.md`](docs/TESTNET_PROOF.md)).
+Real-USDC transactions on mainnet:
+- Instant distribution #1: `0x082c1175335f8d17b77f40cc84faa240dde7b89056b95b632f63d50a5a5db0a4`.
+- Scheduled payment #1, released automatically by the keeper bot 11 seconds after it was due:
+  `0xe358f7e6fa1cffb071279f32f41472ceb703c5124597e6621177808eb3bcde44`.
+
+Details are in [`docs/MAINNET_PROOF.md`](docs/MAINNET_PROOF.md) and [`docs/TESTNET_PROOF.md`](docs/TESTNET_PROOF.md).
 
 ## Local setup
 

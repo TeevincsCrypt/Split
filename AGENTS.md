@@ -114,3 +114,12 @@ Split lets teams, DAOs, freelancers, and businesses distribute USDC to multiple 
 bun install
 bun run dev
 ```
+
+## Arc Mainnet deployments (chain 5042, deployed by owner wallet 0xdF91…8c18 via /deploy)
+
+| Contract | Address | Deploy tx | Deploy block |
+|---|---|---|---|
+| SplitDistributor | `0xb836ee72cddf83ab7df09db97f6f09507f46ff8f` | `0xeedb8919abb6c16405c604a31f4d94a2498e401b01c8508778b7e877942f5e33` | 28366986 |
+| ScheduledSplit | `0x32ef22b2848c2161a075a2bfd4a74a3db3e362fb` | `0xd60939accbbf2cbeadd576542dfc9ce2bd345d3fd08c5f395776cd6d065a5e17` | 28367352 |
+
+Verified by `scripts/verify-mainnet-txs.ts` (.github/workflows/verify-mainnet.yml). Proof txs: see `docs/MAINNET_PROOF.md`.
