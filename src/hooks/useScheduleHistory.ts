@@ -80,13 +80,13 @@ export function useScheduleHistory(): UseScheduleHistoryResult {
                 abi: SCHEDULED_SPLIT_ABI,
                 functionName: 'nextDueTime',
                 args: [ev.id],
-              }) as Promise<bigint>,
+              }),
               publicClient.readContract({
                 address: contractAddress,
                 abi: SCHEDULED_SPLIT_ABI,
                 functionName: 'remainingDeposit',
                 args: [ev.id],
-              }) as Promise<bigint>,
+              }),
             ])
             executed = Number(sched.executed)
             evCancelled = sched.cancelled

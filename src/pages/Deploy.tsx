@@ -16,6 +16,7 @@ import {
 import { ExternalLink, Copy, CheckCircle, XCircle, Loader2, AlertTriangle, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { ACTIVE_NETWORK } from '@/config/networks'
+import { activeArcChain } from '@/config'
 import {
   SPLIT_DISTRIBUTOR_ABI_JSON,
   SPLIT_DISTRIBUTOR_BYTECODE,
@@ -171,7 +172,7 @@ export default function Deploy() {
         bytecode: SPLIT_DISTRIBUTOR_BYTECODE,
         args: [USDC_ADDRESS],
         account: address,
-        chain: null,
+        chain: activeArcChain,
       })
     } catch (err) {
       setState('error')

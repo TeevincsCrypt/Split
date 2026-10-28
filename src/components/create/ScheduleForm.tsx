@@ -3,13 +3,26 @@
  * Renders the full list of computed payment dates and the total deposit.
  * No contract interaction here — just form state + date math.
  */
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { AlertCircle, Calendar, Info } from 'lucide-react'
 import {
   computeDueTimes, localTimezone, parseDatetimeLocal,
   type RepeatMode, type ComputedDueTimes,
 } from '@/lib/schedule'
 import { formatUsdcAmount } from '@/lib/allocation'
+
+/** Minimum ms ahead that the first payment must be. */
+export const SCHEDULE_MIN_LEAD_MS = 2 * 60 * 1000  // 2 minutes
+
+/** Pure validation: returns an error string or null. */
+export function validateFirstPayment(firstDatetime: string, nowMs: number): string | null {
+  const d = parseDatetimeLocal(firstDatetime)
+  if (!d) return null  // empty / not-yet-entered
+  if (d.getTime() <= nowMs + SCHEDULE_MIN_LEAD_MS) {
+    return 'Pick a time at least 2 minutes from now.'
+  }
+  return null
+}
 
 export interface ScheduleFormState {
   firstDatetime: string
@@ -30,10 +43,11 @@ const REPEAT_OPTIONS: { value: RepeatMode; label: string }[] = [
   { value: 'monthly',  label: 'Every month (same day)' },
 ]
 
-/** Minimum datetime-local string: now + 2 minutes */
-function minDatetimeLocal(): string {
-  const d = new Date(Date.now() + 2 * 60 * 1000)
-  return d.toISOString().slice(0, 16)
+/** Minimum datetime-local string (local time, not UTC): now + 2 minutes */
+function minDatetimeLocal(nowMs: number): string {
+  const d = new Date(nowMs + 2 * 60 * 1000)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
 export default function ScheduleForm({ totalAmountParsed, value, onChange }: Props) {
@@ -45,12 +59,15 @@ export default function ScheduleForm({ totalAmountParsed, value, onChange }: Pro
     return computeDueTimes({ firstDatetime, repeat, count })
   }, [firstDatetime, repeat, count])
 
-  // Validate: first payment must be in the future (contract requires dueTimes[0] > block.timestamp)
-  const [mountTime] = useState(() => Date.now())
-  const firstDate = parseDatetimeLocal(firstDatetime)
-  const firstInFuture = firstDate ? firstDate.getTime() > mountTime : false
-  const firstError = firstDatetime && !firstInFuture
-    ? 'First payment must be in the future.'
+  // Live clock: tick every 30 s so the "2 minutes from now" check stays current.
+  const [nowMs, setNowMs] = useState(() => Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 30_000)
+    return () => clearInterval(id)
+  }, [])
+
+  const firstError = firstDatetime
+    ? validateFirstPayment(firstDatetime, nowMs)
     : null
 
   const perPayment = totalAmountParsed
@@ -77,7 +94,7 @@ export default function ScheduleForm({ totalAmountParsed, value, onChange }: Pro
         <input
           type="datetime-local"
           className="input-field font-mono text-sm"
-          min={minDatetimeLocal()}
+          min={minDatetimeLocal(nowMs)}
           value={firstDatetime}
           onChange={(e) => onChange({ ...value, firstDatetime: e.target.value })}
         />

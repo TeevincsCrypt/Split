@@ -7,13 +7,17 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAccount, usePublicClient, useWalletClient } from 'wagmi'
 import { Loader2, Plus, RefreshCw, ArrowUpRight, CheckCircle2, Clock, XCircle, Zap, AlertTriangle } from 'lucide-react'
 import ConnectPrompt from '@/components/ConnectPrompt'
+import WrongNetworkBanner from '@/components/WrongNetworkBanner'
 import { ACTIVE_NETWORK } from '@/config/networks'
+import { activeArcChain } from '@/config'
 import { formatUsdcAmount } from '@/lib/allocation'
 import { formatDueTime, formatCountdown } from '@/lib/schedule'
 import { buildExplorerTx } from '@/lib/utils'
 import { useScheduleHistory, type ScheduleWithState } from '@/hooks/useScheduleHistory'
 import { SCHEDULED_SPLIT_ABI } from '@/abi/ScheduledSplit'
 import RpcErrorBanner from '@/components/RpcErrorBanner'
+import { decodeScheduleError } from '@/components/create/StepScheduleCreate'
+import { executeSchedule } from '@/lib/scheduleTx'
 
 type ScheduleStatus = 'upcoming' | 'due' | 'completed' | 'cancelled'
 
@@ -41,15 +45,18 @@ function CancelDialog({ schedule, onClose, onCancelled }: CancelDialogProps) {
   const [state, setState] = useState<'idle' | 'pending' | 'done' | 'error'>('idle')
   const [txHash, setTxHash] = useState<`0x${string}` | null>(null)
   const [errMsg, setErrMsg] = useState('')
-  const { address } = useAccount()
+  const { address, chainId: walletChainId } = useAccount()
   const publicClient = usePublicClient({ chainId: ACTIVE_NETWORK.chainId })
   const { data: walletClient } = useWalletClient({ chainId: ACTIVE_NETWORK.chainId })
 
   const contractAddress = ACTIVE_NETWORK.scheduledSplitAddress!
-  const refund = schedule.amountPerPayment * BigInt(schedule.dueTimes.length - schedule.executed)
+  // Remaining = unpaid remaining payments (includes due-but-unpaid ones)
+  const remainingPayments = schedule.dueTimes.length - schedule.executed
+  const refund = schedule.amountPerPayment * BigInt(remainingPayments)
+  const wrongChain = !!walletChainId && walletChainId !== ACTIVE_NETWORK.chainId
 
   async function handleCancel() {
-    if (!walletClient || !publicClient || !address) return
+    if (!walletClient || !publicClient || !address || wrongChain) return
     setState('pending')
     try {
       const hash = await walletClient.writeContract({
@@ -58,14 +65,19 @@ function CancelDialog({ schedule, onClose, onCancelled }: CancelDialogProps) {
         functionName: 'cancel',
         args: [schedule.id],
         account: address,
-        chain: null,
+        chain: activeArcChain,
       })
       setTxHash(hash)
-      await publicClient.waitForTransactionReceipt({ hash, timeout: 120_000 })
+      const receipt = await publicClient.waitForTransactionReceipt({ hash, timeout: 120_000 })
+      if (receipt.status === 'reverted') {
+        setErrMsg('Transaction reverted. Check the explorer for details.')
+        setState('error')
+        return
+      }
       setState('done')
       setTimeout(onCancelled, 1200)
     } catch (err) {
-      setErrMsg(String(err).slice(0, 120))
+      setErrMsg(decodeScheduleError(err))
       setState('error')
     }
   }
@@ -82,9 +94,16 @@ function CancelDialog({ schedule, onClose, onCancelled }: CancelDialogProps) {
         <h3 className="display font-bold text-lg" style={{ color: 'var(--ink)', letterSpacing: '-0.02em' }}>
           Cancel &amp; refund?
         </h3>
+
+        {wrongChain && <WrongNetworkBanner />}
+
         <p className="text-sm" style={{ color: 'var(--muted)' }}>
-          This will cancel <strong>"{schedule.name}"</strong> and refund{' '}
-          <strong>{formatUsdcAmount(refund)} USDC</strong> ({schedule.dueTimes.length - schedule.executed} unpaid payments).
+          This will cancel <strong>"{schedule.name}"</strong> and immediately refund{' '}
+          <strong className="text-accent" style={{ color: 'var(--accent)' }}>
+            {formatUsdcAmount(refund)} USDC
+          </strong>
+          {' '}({remainingPayments} unpaid payment{remainingPayments !== 1 ? 's' : ''} ×{' '}
+          {formatUsdcAmount(schedule.amountPerPayment)} USDC each, including any due-but-unpaid payments).
           This cannot be undone.
         </p>
 
@@ -125,6 +144,8 @@ function CancelDialog({ schedule, onClose, onCancelled }: CancelDialogProps) {
 }
 
 function ScheduleCard({ schedule, onAction }: { schedule: ScheduleWithState; onAction: () => void }) {
+  const { chainId: cardChainId } = useAccount()
+  const cardWrongChain = !!cardChainId && cardChainId !== ACTIVE_NETWORK.chainId
   const [nowSec] = useState(() => BigInt(Math.floor(Date.now() / 1000)))
   const status = getStatus(schedule, nowSec)
   const ss = STATUS_STYLE[status]
@@ -139,25 +160,19 @@ function ScheduleCard({ schedule, onAction }: { schedule: ScheduleWithState; onA
 
   async function handleExecute() {
     if (!walletClient || !publicClient || !address) return
+    if (cardWrongChain) {
+      setExecuteErr(`Switch your wallet to ${ACTIVE_NETWORK.name} to release this payment.`)
+      return
+    }
     setExecuting(true)
     setExecuteErr('')
-    try {
-      const hash = await walletClient.writeContract({
-        address: contractAddress,
-        abi: SCHEDULED_SPLIT_ABI,
-        functionName: 'execute',
-        args: [schedule.id],
-        account: address,
-        chain: null,
-      })
-      setExecuteTx(hash)
-      await publicClient.waitForTransactionReceipt({ hash, timeout: 120_000 })
-      onAction()
-    } catch (err) {
-      setExecuteErr(String(err).slice(0, 100))
-    } finally {
-      setExecuting(false)
-    }
+    const r = await executeSchedule({
+      walletClient, publicClient, account: address, contractAddress, id: schedule.id,
+      onSubmitted: setExecuteTx,
+    })
+    if (r.ok) onAction()
+    else setExecuteErr(r.error)
+    setExecuting(false)
   }
 
   return (

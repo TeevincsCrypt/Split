@@ -1,18 +1,28 @@
 /**
  * Step: call createSchedule on the ScheduledSplit contract.
- * Mirrors StepDistribute.tsx in structure and error handling.
+ * Mirrors StepDistribute in structure and error handling.
+ *
+ * Fixes applied:
+ * - simulate (eth_call) before writeContract to surface revert reasons cleanly
+ * - parseEventLogs to decode ScheduleCreated (no topics heuristic)
+ * - chain: activeArcChain (not null) so viem enforces chain-mismatch guard
+ * - validateFirstPayment check right before signing
+ * - decoded custom-error messages for every ScheduledSplit error + ERC20 errors
  */
 import { useState } from 'react'
 import { ArrowLeft, Loader2, ExternalLink, CheckCircle2, AlertTriangle, RefreshCw } from 'lucide-react'
 import { useAccount, usePublicClient, useWalletClient } from 'wagmi'
-import { getAddress, BaseError, ContractFunctionRevertedError, decodeErrorResult } from 'viem'
+import { getAddress, BaseError, ContractFunctionRevertedError, parseEventLogs } from 'viem'
 import { type SplitDraft } from '@/pages/CreateSplit'
 import { ACTIVE_NETWORK } from '@/config/networks'
+import { activeArcChain } from '@/config'
 import { computeAmounts, formatUsdcAmount } from '@/lib/allocation'
 import { formatAddress, buildExplorerTx } from '@/lib/utils'
 import { SCHEDULED_SPLIT_ABI } from '@/abi/ScheduledSplit'
 import type { ScheduleFormState } from './ScheduleForm'
+import { validateFirstPayment } from './ScheduleForm'
 import { computeDueTimes, formatDueTime } from '@/lib/schedule'
+import WrongNetworkBanner from '@/components/WrongNetworkBanner'
 
 interface Props {
   draft: SplitDraft
@@ -23,50 +33,59 @@ interface Props {
 
 type StepState =
   | 'idle'
+  | 'simulating'
   | 'signing'
   | 'confirming'
   | 'unconfirmed'
   | 'success'
   | 'error'
 
-// Friendly messages for ScheduledSplit custom errors
+// ---------------------------------------------------------------------------
+// Custom-error messages for every ScheduledSplit + ERC-20 revert name
+// ---------------------------------------------------------------------------
 const ERROR_MESSAGES: Record<string, string> = {
-  InvalidUsdcAddress:       'Invalid USDC address (contract config error).',
-  LengthMismatch:           'Recipients and percentages do not match.',
-  NoRecipients:             'No recipients specified.',
-  TooManyRecipients:        'Too many recipients (max 50).',
-  InvalidName:              'Name must be 1–64 characters.',
-  InvalidRecipient:         'One or more recipient addresses are invalid.',
-  DuplicateRecipient:       'Duplicate recipient address.',
-  ZeroAllocation:           'One or more recipients have zero allocation.',
-  InvalidAllocationTotal:   'Percentages must sum to exactly 100%.',
-  AllocationRoundsToZero:   'Amount per payment is too small for this split.',
-  ZeroAmountPerPayment:     'Amount per payment must be greater than zero.',
-  InvalidDueTimes:          'Payment dates are invalid (must be in the future, max 24, strictly increasing).',
-  DepositMismatch:          'Deposit amount mismatch — try again.',
+  InvalidUsdcAddress:        'Invalid USDC address (contract config error).',
+  LengthMismatch:            'Recipients and percentages do not match.',
+  NoRecipients:              'No recipients specified.',
+  TooManyRecipients:         'Too many recipients (max 50).',
+  InvalidName:               'Name must be 1–64 characters.',
+  InvalidRecipient:          'One or more recipient addresses are invalid.',
+  DuplicateRecipient:        'Duplicate recipient address.',
+  ZeroAllocation:            'One or more recipients have zero allocation.',
+  InvalidAllocationTotal:    'Percentages must sum to exactly 100%.',
+  AllocationRoundsToZero:    'Amount per payment is too small for this split.',
+  ZeroAmountPerPayment:      'Amount per payment must be greater than zero.',
+  InvalidDueTimes:           'Payment dates are invalid (must be in the future, max 24, strictly increasing).',
+  DepositMismatch:           'Deposit amount mismatch — try again.',
   ERC20InsufficientAllowance: 'Insufficient USDC allowance. Please go back and approve again.',
   ERC20InsufficientBalance:   'Insufficient USDC balance.',
 }
 
-function decodeError(err: unknown): string {
+export function decodeScheduleError(err: unknown): string {
   if (err instanceof BaseError) {
     const revert = err.walk((e) => e instanceof ContractFunctionRevertedError)
     if (revert instanceof ContractFunctionRevertedError) {
       const name = revert.data?.errorName ?? ''
+      if (name === 'TooManyRecipients' && revert.data?.args) {
+        return `Too many recipients (${String(revert.data.args[0])}, max 50).`
+      }
+      if (name === 'InvalidAllocationTotal' && revert.data?.args) {
+        return `Percentages sum to ${String(revert.data.args[0])}, not 10000.`
+      }
       if (name && ERROR_MESSAGES[name]) return ERROR_MESSAGES[name]
-      const args = revert.data?.args
-      if (name === 'TooManyRecipients' && args) return `Too many recipients (${String(args[0])}, max 50).`
-      if (name === 'InvalidAllocationTotal' && args) return `Percentages sum to ${String(args[0])}, not 10000.`
       if (name) return `Contract error: ${name}`
     }
     const msg = err.shortMessage || err.message
-    return msg.length > 160 ? msg.slice(0, 160) + '…' : msg
+    return msg.length > 200 ? msg.slice(0, 200) + '…' : msg
   }
-  return String(err).slice(0, 160)
+  return String(err).slice(0, 200)
 }
 
+/** Wall-clock read for event handlers (kept out of render). */
+const nowMs = () => Date.now()
+
 export default function StepScheduleCreate({ draft, scheduleForm, onBack, onCreated }: Props) {
-  const { address } = useAccount()
+  const { address, chainId: walletChainId } = useAccount()
   const [stepState, setStepState] = useState<StepState>('idle')
   const [error, setError] = useState('')
   const [txHash, setTxHash] = useState<`0x${string}` | null>(null)
@@ -75,6 +94,7 @@ export default function StepScheduleCreate({ draft, scheduleForm, onBack, onCrea
   const publicClient = usePublicClient({ chainId: ACTIVE_NETWORK.chainId })
   const { data: walletClient } = useWalletClient({ chainId: ACTIVE_NETWORK.chainId })
 
+  const wrongChain = !!walletChainId && walletChainId !== ACTIVE_NETWORK.chainId
   const contractAddress = ACTIVE_NETWORK.scheduledSplitAddress!
   const { totalAmountParsed: perPayment, rows, name } = draft
 
@@ -87,79 +107,102 @@ export default function StepScheduleCreate({ draft, scheduleForm, onBack, onCrea
     ? perPayment * BigInt(computed.dueTimes.length)
     : null
 
+  function decodeReceiptRevert(receipt: { logs: readonly { address: `0x${string}`; topics: readonly `0x${string}`[]; data: `0x${string}` }[] }, txLink: string): string {
+    // Try to pull a revert reason from the receipt logs (rare; most reverts return no data)
+    // Fall back to an explorer link so the user can inspect the tx themselves
+    void receipt
+    return `Transaction reverted. ${txLink ? 'Check the explorer for the revert reason.' : ''}`
+  }
+
   async function handleCreate() {
     if (!perPayment || !computed || !walletClient || !publicClient || !address) return
-    setStepState('signing')
+    if (wrongChain) return
+
+    // Check first-payment lead time right before signing
+    const leadErr = validateFirstPayment(scheduleForm.firstDatetime, nowMs())
+    if (leadErr) {
+      setError(leadErr)
+      setStepState('error')
+      return
+    }
+
+    setStepState('simulating')
     setError('')
     setTxHash(null)
 
-    try {
-      const hash = await walletClient.writeContract({
-        address: contractAddress,
-        abi: SCHEDULED_SPLIT_ABI,
-        functionName: 'createSchedule',
-        args: [
-          name.trim(),
-          recipients,
-          bpsValues as unknown as readonly number[],
-          perPayment,
-          computed.dueTimes,
-        ],
-        account: address,
-        chain: null,
-      })
-      setTxHash(hash)
-      setStepState('confirming')
-
-      const receipt = await publicClient.waitForTransactionReceipt({ hash, timeout: 120_000 })
-
-      if (receipt.status === 'reverted') {
-        setError('Transaction reverted. The deposit may have insufficient allowance.')
-        setStepState('error')
-        return
-      }
-
-      // Decode ScheduleCreated event from receipt
-      const scheduledSplitIface = SCHEDULED_SPLIT_ABI
-      let foundId: bigint | null = null
-      for (const log of receipt.logs) {
-        if (log.address.toLowerCase() !== contractAddress.toLowerCase()) continue
-        try {
-          const decoded = decodeErrorResult({ abi: scheduledSplitIface, data: log.data })
-          void decoded
-        } catch { /* not this type */ }
-        // Try to find ScheduleCreated by topic
-        if (log.topics[0]?.toLowerCase() === '0x' + '0'.repeat(64)) continue
-        try {
-          // ScheduleCreated(uint256 indexed id, ...) — id is in topics[1]
-          if (log.topics.length >= 2) {
-            const idHex = log.topics[1]
-            if (idHex) {
-              foundId = BigInt(idHex)
-              break
-            }
-          }
-        } catch { /* continue */ }
-      }
-
-      if (!foundId) {
-        setError('Transaction succeeded but could not find the ScheduleCreated event. Check the explorer.')
-        setStepState('error')
-        return
-      }
-
-      setScheduleId(foundId)
-      setStepState('success')
-      setTimeout(() => onCreated(foundId), 1500)
-    } catch (err) {
-      if (stepState === 'confirming') {
-        // Timeout — show unconfirmed state
-        setStepState('unconfirmed')
-      } else {
-        setError(decodeError(err))
-        setStepState('error')
-      }
+    const callArgs = {
+      address: contractAddress,
+      abi: SCHEDULED_SPLIT_ABI,
+      functionName: 'createSchedule' as const,
+      args: [
+        name.trim(),
+        recipients,
+        bpsValues as unknown as readonly number[],
+        perPayment,
+        computed.dueTimes,
+      ] as const,
     }
+
+    // --- Simulate first (surfaces revert reasons without spending gas) ---
+    try {
+      await publicClient.simulateContract({ ...callArgs, account: address })
+    } catch (err) {
+      setError(decodeScheduleError(err))
+      setStepState('error')
+      return
+    }
+
+    // --- Send ---
+    setStepState('signing')
+    let hash: `0x${string}`
+    try {
+      hash = await walletClient.writeContract({
+        ...callArgs,
+        account: address,
+        chain: activeArcChain,
+      })
+    } catch (err) {
+      setError(decodeScheduleError(err))
+      setStepState('error')
+      return
+    }
+
+    setTxHash(hash)
+    setStepState('confirming')
+
+    // --- Wait for receipt ---
+    let receipt: Awaited<ReturnType<typeof publicClient.waitForTransactionReceipt>>
+    try {
+      receipt = await publicClient.waitForTransactionReceipt({ hash, timeout: 120_000 })
+    } catch {
+      setStepState('unconfirmed')
+      return
+    }
+
+    if (receipt.status === 'reverted') {
+      setError(decodeReceiptRevert(receipt, buildExplorerTx(hash)))
+      setStepState('error')
+      return
+    }
+
+    // --- Decode ScheduleCreated via parseEventLogs (not topics heuristic) ---
+    const matchingLogs = parseEventLogs({
+      abi: SCHEDULED_SPLIT_ABI,
+      eventName: 'ScheduleCreated',
+      logs: receipt.logs,
+    }).filter((l) => l.address.toLowerCase() === contractAddress.toLowerCase())
+
+    const foundId = matchingLogs[0]?.args?.id ?? null
+
+    if (foundId == null) {
+      setError('Transaction succeeded but no ScheduleCreated event found. Check the explorer.')
+      setStepState('error')
+      return
+    }
+
+    setScheduleId(foundId)
+    setStepState('success')
+    setTimeout(() => onCreated(foundId), 1500)
   }
 
   async function handleCheckAgain() {
@@ -168,20 +211,18 @@ export default function StepScheduleCreate({ draft, scheduleForm, onBack, onCrea
     try {
       const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash, timeout: 60_000 })
       if (receipt.status === 'reverted') {
-        setError('Transaction reverted.')
+        setError(decodeReceiptRevert(receipt, buildExplorerTx(txHash)))
         setStepState('error')
         return
       }
-      // Re-decode ScheduleCreated
-      let foundId: bigint | null = null
-      for (const log of receipt.logs) {
-        if (log.address.toLowerCase() !== contractAddress.toLowerCase()) continue
-        if (log.topics.length >= 2 && log.topics[1]) {
-          foundId = BigInt(log.topics[1])
-          break
-        }
-      }
-      if (!foundId) {
+      const matchingLogs = parseEventLogs({
+        abi: SCHEDULED_SPLIT_ABI,
+        eventName: 'ScheduleCreated',
+        logs: receipt.logs,
+      }).filter((l) => l.address.toLowerCase() === contractAddress.toLowerCase())
+
+      const foundId = matchingLogs[0]?.args?.id ?? null
+      if (foundId == null) {
         setError('Transaction confirmed but no ScheduleCreated event found.')
         setStepState('error')
         return
@@ -196,8 +237,10 @@ export default function StepScheduleCreate({ draft, scheduleForm, onBack, onCrea
 
   return (
     <div className="card p-5 flex flex-col gap-5">
+      {wrongChain && <WrongNetworkBanner />}
+
       <div className="flex items-center gap-3">
-        {stepState === 'idle' || stepState === 'error' ? (
+        {(stepState === 'idle' || stepState === 'error') ? (
           <button onClick={onBack} className="icon-btn" aria-label="Back">
             <ArrowLeft className="size-4" />
           </button>
@@ -220,7 +263,9 @@ export default function StepScheduleCreate({ draft, scheduleForm, onBack, onCrea
           <span className="text-sm font-bold" style={{ color: 'var(--accent)' }}>USDC</span>
         </div>
         <span className="text-xs" style={{ color: 'var(--muted)' }}>
-          {computed ? `${computed.dueTimes.length} payment${computed.dueTimes.length !== 1 ? 's' : ''} starting ${formatDueTime(computed.dueTimes[0])}` : ''}
+          {computed
+            ? `${computed.dueTimes.length} payment${computed.dueTimes.length !== 1 ? 's' : ''} starting ${formatDueTime(computed.dueTimes[0])}`
+            : ''}
         </span>
       </div>
 
@@ -272,23 +317,31 @@ export default function StepScheduleCreate({ draft, scheduleForm, onBack, onCrea
           style={{ background: 'var(--danger-bg)', color: 'var(--danger)' }}>
           <AlertTriangle className="size-4 shrink-0 mt-0.5" />
           {error}
+          {txHash && (
+            <a href={buildExplorerTx(txHash)} target="_blank" rel="noopener noreferrer"
+              className="ml-auto shrink-0 underline" style={{ color: 'var(--danger)' }}>
+              Explorer
+            </a>
+          )}
         </div>
       )}
 
       {(stepState === 'idle' || stepState === 'error') && (
         <button
           onClick={() => void handleCreate()}
-          disabled={!perPayment || !computed || !walletClient}
+          disabled={!perPayment || !computed || !walletClient || wrongChain}
           className="btn-primary flex items-center justify-center gap-2"
         >
-          Create schedule
+          {wrongChain ? `Switch to ${ACTIVE_NETWORK.name}` : 'Create schedule'}
         </button>
       )}
 
-      {(stepState === 'signing' || stepState === 'confirming') && (
+      {(stepState === 'simulating' || stepState === 'signing' || stepState === 'confirming') && (
         <button disabled className="btn-primary flex items-center justify-center gap-2 opacity-70 cursor-not-allowed">
           <Loader2 className="size-4 animate-spin" />
-          {stepState === 'signing' ? 'Confirm in wallet…' : 'Confirming transaction…'}
+          {stepState === 'simulating'  ? 'Checking…'
+            : stepState === 'signing' ? 'Confirm in wallet…'
+            : 'Confirming transaction…'}
         </button>
       )}
     </div>

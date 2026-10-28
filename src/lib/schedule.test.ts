@@ -117,6 +117,61 @@ describe('computeDueTimes – monthly', () => {
     expect(dates[1].getMonth()).toBe(3) // April
     expect(dates[1].getDate()).toBe(30)
   })
+
+  // Bug regression: anchor-from-first prevents cumulative drift
+  it('Jan 31 ×4 — no drift (Feb 28, then back to 31 in Mar and Apr)', () => {
+    // 2027 is not a leap year
+    const result = computeDueTimes({ firstDatetime: '2027-01-31T12:00', repeat: 'monthly', count: 4 })
+    const dates = result!.dueTimes.map((t) => new Date(Number(t) * 1000))
+    expect(dates[0].getDate()).toBe(31)   // Jan 31
+    expect(dates[1].getMonth()).toBe(1); expect(dates[1].getDate()).toBe(28)  // Feb 28
+    expect(dates[2].getMonth()).toBe(2); expect(dates[2].getDate()).toBe(31)  // Mar 31 (NOT Mar 28)
+    expect(dates[3].getMonth()).toBe(3); expect(dates[3].getDate()).toBe(30)  // Apr 30 (NOT Apr 28)
+  })
+
+  it('Feb 29 leap year ×13 — no drift across 13 payments', () => {
+    // 2028 is a leap year; starting Feb 29
+    const result = computeDueTimes({ firstDatetime: '2028-02-29T10:00', repeat: 'monthly', count: 13 })
+    const dates = result!.dueTimes.map((t) => new Date(Number(t) * 1000))
+    expect(dates[0].getDate()).toBe(29)  // Feb 29
+    // March has 31 days — clamp doesn't trigger
+    expect(dates[1].getMonth()).toBe(2); expect(dates[1].getDate()).toBe(29)  // Mar 29
+    // April has 30 days — clamp doesn't trigger
+    expect(dates[2].getMonth()).toBe(3); expect(dates[2].getDate()).toBe(29)  // Apr 29
+    // index 12 = payment 13 = Feb 2029 (not a leap year) → clamp to 28
+    expect(dates[12].getFullYear()).toBe(2029)
+    expect(dates[12].getMonth()).toBe(1)  // February
+    expect(dates[12].getDate()).toBe(28)
+  })
+
+  it('Aug 31 → Sep 30 → Oct 31', () => {
+    const result = computeDueTimes({ firstDatetime: '2027-08-31T09:00', repeat: 'monthly', count: 3 })
+    const dates = result!.dueTimes.map((t) => new Date(Number(t) * 1000))
+    expect(dates[0].getDate()).toBe(31)                                         // Aug 31
+    expect(dates[1].getMonth()).toBe(8); expect(dates[1].getDate()).toBe(30)    // Sep 30
+    expect(dates[2].getMonth()).toBe(9); expect(dates[2].getDate()).toBe(31)    // Oct 31
+  })
+})
+
+// ---------------------------------------------------------------------------
+// computeDueTimes — DST-crossing weekly (wall-clock time preserved)
+// ---------------------------------------------------------------------------
+describe('computeDueTimes – DST weekly', () => {
+  it('weekly schedule keeps the same local hour across a DST transition', () => {
+    // In most timezones that observe DST, clocks spring forward at 02:00 in March
+    // and fall back in November. We use a fixed local hour (09:00) and verify that
+    // all 4 weekly payments land at 09:00 local time regardless of DST shifts.
+    // Vitest runs with the host timezone; this test is valid whenever the
+    // datetime-local parser treats the string as local (which it does: new Date('YYYY-MM-DDTHH:mm')).
+    const result = computeDueTimes({ firstDatetime: '2027-03-07T09:00', repeat: 'weekly', count: 4 })
+    expect(result).not.toBeNull()
+    const dates = result!.dueTimes.map((t) => new Date(Number(t) * 1000))
+    // All four dates must have the same local hour (09) regardless of timezone
+    const hours = dates.map((d) => d.getHours())
+    expect(hours).toEqual([9, 9, 9, 9])
+    // Dates are exactly 7 days apart in local days
+    expect(dates[1].getDate() - dates[0].getDate()).toBe(7)
+  })
 })
 
 // ---------------------------------------------------------------------------

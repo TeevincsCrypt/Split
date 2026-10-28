@@ -19,6 +19,7 @@ import {
 } from '@/lib/scheduleHistory'
 import { SCHEDULED_SPLIT_ABI } from '@/abi/ScheduledSplit'
 import RpcErrorBanner from '@/components/RpcErrorBanner'
+import { executeSchedule } from '@/lib/scheduleTx'
 
 interface LiveState {
   executed: number
@@ -30,7 +31,7 @@ interface LiveState {
 export default function ScheduleDetail() {
   const { id } = useParams<{ id: string }>()
   const scheduleId = id ? BigInt(id) : null
-  const { address } = useAccount()
+  const { address, chainId: walletChainId } = useAccount()
   const publicClient = usePublicClient({ chainId: ACTIVE_NETWORK.chainId })
   const { data: walletClient } = useWalletClient({ chainId: ACTIVE_NETWORK.chainId })
   const contractAddress = ACTIVE_NETWORK.scheduledSplitAddress
@@ -84,13 +85,13 @@ export default function ScheduleDetail() {
             abi: SCHEDULED_SPLIT_ABI,
             functionName: 'nextDueTime',
             args: [scheduleId],
-          }) as Promise<bigint> | undefined,
+          }),
           publicClient?.readContract({
             address: contractAddress,
             abi: SCHEDULED_SPLIT_ABI,
             functionName: 'remainingDeposit',
             args: [scheduleId],
-          }) as Promise<bigint> | undefined,
+          }),
           fetchExecutedEvents(contractAddress, ACTIVE_NETWORK.scheduledSplitDeployBlock, scheduleId),
           fetchCancelledEvent(contractAddress, ACTIVE_NETWORK.scheduledSplitDeployBlock, scheduleId),
         ])
@@ -117,25 +118,19 @@ export default function ScheduleDetail() {
 
   async function handleExecute() {
     if (!walletClient || !publicClient || !address || !scheduleId || !contractAddress) return
+    if (walletChainId && walletChainId !== ACTIVE_NETWORK.chainId) {
+      setExecuteErr(`Switch your wallet to ${ACTIVE_NETWORK.name} to release this payment.`)
+      return
+    }
     setExecuting(true)
     setExecuteErr('')
-    try {
-      const hash = await walletClient.writeContract({
-        address: contractAddress,
-        abi: SCHEDULED_SPLIT_ABI,
-        functionName: 'execute',
-        args: [scheduleId],
-        account: address,
-        chain: null,
-      })
-      setExecuteTx(hash)
-      await publicClient.waitForTransactionReceipt({ hash, timeout: 120_000 })
-      setRetryToken((t) => t + 1)
-    } catch (err) {
-      setExecuteErr(String(err).slice(0, 120))
-    } finally {
-      setExecuting(false)
-    }
+    const r = await executeSchedule({
+      walletClient, publicClient, account: address, contractAddress, id: scheduleId,
+      onSubmitted: setExecuteTx,
+    })
+    if (r.ok) setRetryToken((t) => t + 1)
+    else setExecuteErr(r.error)
+    setExecuting(false)
   }
 
   if (!contractAddress) {

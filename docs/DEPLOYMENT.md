@@ -73,6 +73,8 @@ The testnet contract is already deployed (by Arc Studio):
    | `VITE_SPLIT_DISTRIBUTOR_ADDRESS` | `0x43a159af83f4c836940e2e74c8a29ae677c39498` |
    | `VITE_SPLIT_DEPLOY_BLOCK` | `69249404` |
    | `VITE_SPLIT_RPC_URL` | leave empty unless the public RPC fails |
+   | `VITE_SCHEDULED_SPLIT_ADDRESS` | `0xf43192c85c5888c7b01fe7257efb80f6de2e17d6` |
+   | `VITE_SCHEDULED_SPLIT_DEPLOY_BLOCK` | `69445979` |
 
 3. Click **Deploy**. These values are compiled into the site, so **change a variable → Redeploy**.
 4. Vercel's production site follows the `main` branch. Either merge

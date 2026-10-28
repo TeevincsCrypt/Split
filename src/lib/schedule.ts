@@ -23,28 +23,41 @@ export interface ComputedDueTimes {
 }
 
 /**
- * Advance a Date by one repeat interval.
- * Monthly: advances by one calendar month, clamping day to last day of shorter months.
+ * Compute the i-th payment date (i >= 1) anchored to the FIRST payment date.
+ *
+ * This avoids cumulative drift: calling addInterval on the previously clamped
+ * date causes Jan 31 → Feb 28 → Mar 28 → Apr 28, but anchoring to first gives
+ * Jan 31 → Feb 28/29 → Mar 31 → Apr 30 → May 31 … as expected.
+ *
+ * - Weekly / biweekly: first + i×7 or i×14 days, applied via setDate so DST
+ *   transitions do not shift the wall-clock hour.
+ * - Monthly: same day-of-month and time as `first`, month + i, clamped to the
+ *   last day of that month.
  */
-function addInterval(d: Date, mode: RepeatMode): Date {
-  const next = new Date(d)
-  if (mode === 'weekly') {
-    next.setDate(next.getDate() + 7)
-  } else if (mode === 'biweekly') {
-    next.setDate(next.getDate() + 14)
-  } else if (mode === 'monthly') {
-    const day = d.getDate()
-    // Compute target month/year BEFORE advancing (avoids JS overflow to March when Jan 31 +1m)
-    const targetMonth = d.getMonth() + 1  // 0-indexed month of target
-    const targetYear = targetMonth === 12 ? d.getFullYear() + 1 : d.getFullYear()
-    const normMonth = targetMonth % 12     // 0-indexed, wraps Jan=0
-    // Last day of target month: day 0 of month+1 = last day of month
-    const lastDay = new Date(targetYear, normMonth + 1, 0).getDate()
-    const clampedDay = day > lastDay ? lastDay : day
-    // Set explicitly — never let setMonth overflow
-    next.setFullYear(targetYear, normMonth, clampedDay)
+function nthPaymentDate(first: Date, i: number, mode: RepeatMode): Date {
+  if (mode === 'weekly' || mode === 'biweekly') {
+    const days = mode === 'weekly' ? 7 * i : 14 * i
+    const d = new Date(first)
+    d.setDate(d.getDate() + days)
+    return d
   }
-  return next
+  // monthly
+  const origDay   = first.getDate()
+  const origMonth = first.getMonth()   // 0-indexed
+  const origYear  = first.getFullYear()
+
+  const totalMonths = origMonth + i
+  const targetYear  = origYear + Math.floor(totalMonths / 12)
+  const targetMonth = totalMonths % 12                          // 0-indexed
+
+  // Last calendar day of the target month
+  const lastDay = new Date(targetYear, targetMonth + 1, 0).getDate()
+  const clampedDay = origDay > lastDay ? lastDay : origDay
+
+  const d = new Date(first)
+  // Set year/month/day atomically to avoid intermediate overflow
+  d.setFullYear(targetYear, targetMonth, clampedDay)
+  return d
 }
 
 const dtFmt = new Intl.DateTimeFormat(undefined, {
@@ -81,12 +94,9 @@ export function computeDueTimes(values: ScheduleFormValues): ComputedDueTimes | 
   if (!first) return null
 
   const dates: Date[] = [first]
-  let prev = first
   for (let i = 1; i < count; i++) {
     if (repeat === 'none') break
-    const next = addInterval(prev, repeat)
-    dates.push(next)
-    prev = next
+    dates.push(nthPaymentDate(first, i, repeat))
   }
 
   return {

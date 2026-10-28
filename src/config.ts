@@ -33,7 +33,7 @@ export const arcMainnet = defineChain({
 
 // Which Arc chain is active
 const networkEnv: string = (import.meta.env.VITE_SPLIT_NETWORK as string | undefined) ?? 'testnet'
-const activeArcChain = networkEnv === 'mainnet' ? arcMainnet : arcTestnet
+export const activeArcChain = networkEnv === 'mainnet' ? arcMainnet : arcTestnet
 
 // Use the effective RPC URL from networks.ts (honours VITE_SPLIT_RPC_URL override and proxy)
 const effectiveRpcUrl = ACTIVE_NETWORK.rpcUrl
