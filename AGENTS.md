@@ -56,16 +56,39 @@ Split lets teams, DAOs, freelancers, and businesses distribute USDC to multiple 
 - `contracts/test/` - Foundry test suite (40 tests, max preset)
 - `docs/splitdistributor-report.md` - Full security review + test report
 
-## Deploy block
+### ScheduledSplit
 
-Arc Testnet deploy block: **69249404** (from tx receipt `0xa01d2a87258d79122d210787029bd968b18f874cc11dd0d2f978e23d53f595dd`). Set as `VITE_SPLIT_DEPLOY_BLOCK` in `.env` and `.env.example`.
+| Field | Value |
+|---|---|
+| Network | Arc Testnet (Chain ID 5042002) |
+| Address | `0xf43192c85c5888c7b01fe7257efb80f6de2e17d6` |
+| Deploy tx | `0x74794a12a72da408b533c7cb167850d90d6e6e4a0c92a01ed47f218cc8cdea14` |
+| Deploy block | `69445979` |
+| Explorer | https://explorer.testnet.arc.io/address/0xf43192c85c5888c7b01fe7257efb80f6de2e17d6 |
+| Constructor arg | `usdc_ = 0x3600000000000000000000000000000000000000` (Arc Testnet official USDC) |
+| ABI / artifact | `contracts/out/ScheduledSplit.sol/ScheduledSplit.json` |
+| Embedded artifact | `src/abi/ScheduledSplitArtifact.ts` |
+| Metadata | `contracts/contract-metadata/ScheduledSplit.json` |
+
+## Deploy blocks
+
+- SplitDistributor: **69249404** (tx `0xa01d2a87258d79122d210787029bd968b18f874cc11dd0d2f978e23d53f595dd`)
+- ScheduledSplit: **69445979** (tx `0x74794a12a72da408b533c7cb167850d90d6e6e4a0c92a01ed47f218cc8cdea14`)
 
 ## Security review notes
 
+### SplitDistributor
 - Max preset: two rounds of audit (solidity + functional), Slither, 40 unit tests, fuzz tests.
 - Round 1 fix: added empty-bps guard in `_computeAmounts` to prevent underflow panic from `previewAmounts`.
 - Documented: one blocked USDC recipient reverts the whole distribution (intentional atomic design per spec).
 - Slither final: 0 findings.
+
+### ScheduledSplit
+- Max preset: concurrent solidity + functional audits, Slither, 69 unit tests (all pass), fuzz + invariant tests.
+- Compiler: `via_ir = true` added to `foundry.toml` (required for `createSchedule` stack depth with 50 recipients).
+- Audit findings: 1 High (cancel/execute ordering — permissionless by design, documented in NatSpec), 2 Medium (USDC blocklist atomic revert and contract-level freeze — inherent USDC trust assumptions, documented). All documented; no logic changes required.
+- Slither: 0 Medium/High findings. 3 Low `timestamp` (inherent), 1 Informational `cyclomatic-complexity`.
+- Gas benchmarks: `createSchedule(50 recipients, 24 payments)` = 2,014,393 gas. `execute(50 recipients)` first call = 1,320,090 gas; avg over 24 payments = 249,721 gas.
 
 ## To Run
 
