@@ -302,7 +302,7 @@ function ScheduleCard({ schedule, onAction }: { schedule: ScheduleWithState; onA
 export default function Schedules() {
   const { isConnected } = useAccount()
   const navigate = useNavigate()
-  const { schedules, loading, rpcError, retry } = useScheduleHistory()
+  const { schedules, loading, rpcError, errorDetail, retry } = useScheduleHistory()
   const [pageNow] = useState(() => BigInt(Math.floor(Date.now() / 1000)))
 
   if (!ACTIVE_NETWORK.scheduledSplitAddress) {
@@ -344,7 +344,7 @@ export default function Schedules() {
         </button>
       </div>
 
-      {rpcError && <RpcErrorBanner onRetry={retry} />}
+      {rpcError && <RpcErrorBanner onRetry={retry} detail={errorDetail} />}
 
       {loading ? (
         <div className="flex justify-center py-16">

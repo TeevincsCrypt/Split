@@ -1,8 +1,8 @@
 import { AlertTriangle, RefreshCw } from 'lucide-react'
 
-interface Props { onRetry: () => void }
+interface Props { onRetry: () => void; detail?: string | null }
 
-export default function RpcErrorBanner({ onRetry }: Props) {
+export default function RpcErrorBanner({ onRetry, detail }: Props) {
   return (
     <div
       className="rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center gap-3"
@@ -16,6 +16,9 @@ export default function RpcErrorBanner({ onRetry }: Props) {
         <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
           Set <code className="mono">VITE_SPLIT_RPC_URL</code> to an alternative endpoint, or retry.
         </p>
+        {detail && (
+          <p className="mono text-xs mt-1 break-all" style={{ color: 'var(--muted)' }}>{detail}</p>
+        )}
       </div>
       <button
         onClick={onRetry}

@@ -23,6 +23,8 @@ import {
 import { arcTestnet } from 'viem/chains'
 import { arcMainnet } from '@/config'
 import { ACTIVE_NETWORK } from '@/config/networks'
+import { SCHEDULED_SPLIT_ABI } from '@/abi/ScheduledSplit'
+import { BaseError } from 'viem'
 
 // ---------------------------------------------------------------------------
 // Shared public client with fallback transport — mirrors history.ts
@@ -88,29 +90,30 @@ export interface ScheduleCancelledEvent {
 // ---------------------------------------------------------------------------
 export async function fetchScheduleCount(
   contractAddress: Address,
-): Promise<{ count: bigint; rpcError: boolean }> {
+): Promise<{ count: bigint; rpcError: boolean; errorDetail: string | null }> {
   try {
     const count = await schedulePublicClient.readContract({
       address: contractAddress,
-      abi: parseAbi(['function scheduleCount() external view returns (uint256)']),
+      abi: SCHEDULED_SPLIT_ABI,
       functionName: 'scheduleCount',
     })
-    return { count: count, rpcError: false }
-  } catch {
-    return { count: 0n, rpcError: true }
+    return { count, rpcError: false, errorDetail: null }
+  } catch (err) {
+    // Distinguish "nothing deployed at this address" from "RPC unreachable"
+    let detail = err instanceof BaseError ? err.shortMessage : String(err).slice(0, 160)
+    try {
+      const code = await schedulePublicClient.getCode({ address: contractAddress })
+      if (!code || code === '0x') {
+        detail = `No ScheduledSplit contract at ${contractAddress} on ${ACTIVE_NETWORK.name}. Check VITE_SCHEDULED_SPLIT_ADDRESS.`
+      }
+    } catch { /* keep the original detail */ }
+    return { count: 0n, rpcError: true, errorDetail: detail }
   }
 }
 
 // ---------------------------------------------------------------------------
 // fetchScheduleState — reads getSchedule + nextDueTime + remainingDeposit for one id
 // ---------------------------------------------------------------------------
-
-// Inline ABI fragment for the three view functions we need
-const SCHEDULE_VIEW_ABI = parseAbi([
-  'function getSchedule(uint256 id) external view returns (uint256 executed, bool cancelled, address payer, bytes32 nameHash, string name, uint96 amountPerPayment, uint64[] dueTimes, address[] recipients, uint16[] bps)',
-  'function nextDueTime(uint256 id) external view returns (uint64)',
-  'function remainingDeposit(uint256 id) external view returns (uint256)',
-])
 
 export interface ScheduleState {
   id: bigint
@@ -138,35 +141,26 @@ export async function fetchScheduleState(
     const [raw, ndt, rd] = await Promise.all([
       schedulePublicClient.readContract({
         address: contractAddress,
-        abi: SCHEDULE_VIEW_ABI,
+        abi: SCHEDULED_SPLIT_ABI,
         functionName: 'getSchedule',
         args: [id],
       }),
       schedulePublicClient.readContract({
         address: contractAddress,
-        abi: SCHEDULE_VIEW_ABI,
+        abi: SCHEDULED_SPLIT_ABI,
         functionName: 'nextDueTime',
         args: [id],
       }),
       schedulePublicClient.readContract({
         address: contractAddress,
-        abi: SCHEDULE_VIEW_ABI,
+        abi: SCHEDULED_SPLIT_ABI,
         functionName: 'remainingDeposit',
         args: [id],
       }),
     ])
 
-    // getSchedule returns a named-field tuple; cast via unknown to satisfy TS
-    const s = raw as unknown as {
-      executed: bigint | number
-      cancelled: boolean
-      payer: Address
-      name: string
-      amountPerPayment: bigint
-      dueTimes: readonly bigint[]
-      recipients: readonly Address[]
-      bps: readonly number[]
-    }
+    // getSchedule returns one struct: (payer, amountPerPayment, dueTimes, executed, cancelled, recipients, bps, name)
+    const s = raw
 
     return {
       id,

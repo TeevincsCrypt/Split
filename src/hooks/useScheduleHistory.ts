@@ -27,6 +27,7 @@ export interface UseScheduleHistoryResult {
   schedules: ScheduleWithState[]
   loading: boolean
   rpcError: boolean
+  errorDetail: string | null
   retry: () => void
 }
 
@@ -61,6 +62,7 @@ export function useScheduleHistory(): UseScheduleHistoryResult {
   const [schedules, setSchedules] = useState<ScheduleWithState[]>([])
   const [loading, setLoading] = useState(!!contractAddress && !!address)
   const [rpcError, setRpcError] = useState(false)
+  const [errorDetail, setErrorDetail] = useState<string | null>(null)
   const [retryToken, setRetryToken] = useState(0)
 
   const retry = useCallback(() => setRetryToken((t) => t + 1), [])
@@ -73,12 +75,14 @@ export function useScheduleHistory(): UseScheduleHistoryResult {
     async function load() {
       setLoading(true)
       setRpcError(false)
+      setErrorDetail(null)
 
       // Step 1: get total count — page-wide error only if this fails
-      const { count, rpcError: countErr } = await fetchScheduleCount(contractAddress!)
+      const { count, rpcError: countErr, errorDetail: detail } = await fetchScheduleCount(contractAddress!)
       if (cancelled) return
       if (countErr) {
         setRpcError(true)
+        setErrorDetail(detail)
         setLoading(false)
         return
       }
@@ -135,5 +139,5 @@ export function useScheduleHistory(): UseScheduleHistoryResult {
     return () => { cancelled = true }
   }, [address, contractAddress, retryToken])
 
-  return { schedules, loading, rpcError, retry }
+  return { schedules, loading, rpcError, errorDetail, retry }
 }
