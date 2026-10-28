@@ -1,0 +1,53 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+  :root { --bg:#EFE9E3; --ink:#24131B; --brand:#641532; --pink:#F6E4EA; --muted:#7A6A70; }
+  * { margin:0; box-sizing:border-box; }
+  [hidden] { display:none !important; }
+  html,body { width:1920px; height:1080px; overflow:hidden; font-family:'Inter',sans-serif; color:var(--ink); }
+  body.solid { background:var(--bg); }
+  body.clear { background:transparent; }
+  .win { position:absolute; left:80px; top:30px; width:1760px; height:800px; border-radius:22px; }
+  #bg .win { background:#fff; box-shadow:0 24px 60px rgba(60,20,35,.16), 0 2px 8px rgba(60,20,35,.08); }
+  #frame .win { box-shadow:0 0 0 3000px var(--bg), inset 0 0 0 1px rgba(60,20,35,.10); }
+  .card { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
+          background: radial-gradient(1200px 700px at 50% 30%, #fff 0%, #F8F1EC 45%, var(--bg) 100%); }
+  .mark { width:120px; height:auto; margin-bottom:34px; }
+  .eyebrow { font-size:26px; letter-spacing:.24em; text-transform:uppercase; color:var(--brand); font-weight:600; margin-bottom:22px; }
+  h1 { font-family:'Inter Display','Inter',sans-serif; font-size:150px; font-weight:700; letter-spacing:-.04em; line-height:1; }
+  h2 { font-family:'Inter Display','Inter',sans-serif; font-size:76px; font-weight:700; letter-spacing:-.03em; margin-top:26px; }
+  h2 em { font-style:normal; color:var(--brand); }
+  .chips { display:flex; gap:18px; margin-top:48px; }
+  .chip { font-size:28px; font-weight:600; padding:14px 28px; border-radius:999px; background:var(--pink); color:var(--brand); }
+  .chip.dark { background:var(--brand); color:#fff; }
+  .rows { margin-top:46px; display:grid; grid-template-columns:auto auto; gap:14px 34px; text-align:left; font-size:28px; }
+  .rows b { color:var(--muted); font-weight:500; }
+  .rows code { font-family:'DejaVu Sans Mono',monospace; font-size:25px; }
+  .url { font-size:44px; font-weight:700; color:var(--brand); margin-top:30px; }
+</style></head>
+<body>
+<div id="bg" hidden><div class="win"></div></div>
+<div id="frame" hidden><div class="win"></div></div>
+<div id="title" class="card" hidden>
+  <svg class="mark" viewBox="0 0 107 145" fill="#641532"><path d="M8.00 47.25 L70.88 10.21 A16 16 0 1 1 79.00 40.00 L22.00 40.00 L22.00 60.00 L99.00 60.00 L99.00 97.75 L36.12 134.79 A16 16 0 1 1 28.00 105.00 L85.00 105.00 L85.00 85.00 L8.00 85.00 Z"/></svg>
+  <div class="eyebrow">Product walkthrough</div>
+  <h1>Split</h1>
+  <h2>Pay everyone. <em>In one move.</em></h2>
+  <div class="chips"><span class="chip">Built in Arc Studio</span><span class="chip dark">Live on Arc mainnet</span><span class="chip">Real USDC</span></div>
+</div>
+<div id="end" class="card" hidden>
+  <svg class="mark" viewBox="0 0 107 145" fill="#641532"><path d="M8.00 47.25 L70.88 10.21 A16 16 0 1 1 79.00 40.00 L22.00 40.00 L22.00 60.00 L99.00 60.00 L99.00 97.75 L36.12 134.79 A16 16 0 1 1 28.00 105.00 L85.00 105.00 L85.00 85.00 L8.00 85.00 Z"/></svg>
+  <h2 style="margin-top:0">Pay everyone. <em>In one move.</em></h2>
+  <div class="url">paywsplit.vercel.app</div>
+  <div class="rows">
+    <b>Built in Arc Studio</b><code>studio.arc.io/app/767489e9-b81c-4ccf-a5df-94881d408a4d</code>
+    <b>SplitDistributor · Arc mainnet</b><code>0xb836ee72cddf83ab7df09db97f6f09507f46ff8f</code>
+    <b>ScheduledSplit · Arc mainnet</b><code>0x32ef22b2848c2161a075a2bfd4a74a3db3e362fb</code>
+  </div>
+</div>
+<script>
+  const id = location.hash.slice(1);
+  document.getElementById(id).hidden = false;
+  document.body.className = id === 'frame' ? 'clear' : 'solid';
+</script>
+</body></html>
