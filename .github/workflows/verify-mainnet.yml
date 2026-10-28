@@ -7,7 +7,12 @@ on:
     inputs:
       hashes:
         description: Transaction hashes (space or comma separated)
-        required: true
+        required: false
+        default: ''
+      contracts:
+        description: Contract addresses to check (space or comma separated)
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -29,4 +34,5 @@ jobs:
         timeout-minutes: 2
         env:
           TX_HASHES: ${{ inputs.hashes }}
+          CONTRACTS: ${{ inputs.contracts }}
         run: bun run scripts/verify-mainnet-txs.ts

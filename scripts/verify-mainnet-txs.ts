@@ -3,11 +3,13 @@
  * For each hash in TX_HASHES (space/comma separated) it prints the receipt. For a contract
  * deployment it also checks that the creation code is the embedded Arc Studio artifact, that
  * the constructor argument is official USDC, and reads the new contract back. For a call it
- * decodes Split events. Sends no transactions and uses no keys.
+ * decodes Split events. For each address in CONTRACTS it compares the runtime code with the
+ * artifact (only the immutable USDC address may differ), reads it back, and binary-searches
+ * the block it was deployed in. Sends no transactions and uses no keys.
  */
 import { createPublicClient, http, fallback, decodeEventLog, isHex, getAddress, type Hex } from 'viem'
-import { SPLIT_DISTRIBUTOR_ABI_JSON as SD_ABI, SPLIT_DISTRIBUTOR_BYTECODE as SD_CODE } from '../src/abi/SplitDistributorArtifact'
-import { SCHEDULED_SPLIT_ABI_JSON as SS_ABI, SCHEDULED_SPLIT_BYTECODE as SS_CODE } from '../src/abi/ScheduledSplitArtifact'
+import { SPLIT_DISTRIBUTOR_ABI_JSON as SD_ABI, SPLIT_DISTRIBUTOR_BYTECODE as SD_CODE, SPLIT_DISTRIBUTOR_DEPLOYED_BYTECODE as SD_RUNTIME } from '../src/abi/SplitDistributorArtifact'
+import { SCHEDULED_SPLIT_ABI_JSON as SS_ABI, SCHEDULED_SPLIT_BYTECODE as SS_CODE, SCHEDULED_SPLIT_DEPLOYED_BYTECODE as SS_RUNTIME } from '../src/abi/ScheduledSplitArtifact'
 
 const USDC = '0x3600000000000000000000000000000000000000'
 const client = createPublicClient({
@@ -58,5 +60,41 @@ for (const raw of hashes) {
         } catch { /* not this ABI */ }
       }
     }
+  } catch (e) { console.log(`FAILED ${(e as Error).message.split('\n')[0]}`) }
+}
+
+/** Runtime code equals the artifact except inside immutable slots, which hold the USDC address. */
+function runtimeMatches(onchain: string, artifact: string): boolean {
+  if (onchain.length !== artifact.length) return false
+  const usdcByte = '36'
+  for (let i = 2; i < onchain.length; i += 2) {
+    const a = artifact.slice(i, i + 2), b = onchain.slice(i, i + 2).toLowerCase()
+    if (a !== b && !(a === '00' && b === usdcByte)) return false
+  }
+  return true
+}
+
+const addrs = (process.env.CONTRACTS ?? '').split(/[\s,]+/).filter(Boolean)
+const head = await client.getBlockNumber()
+for (const raw of addrs) {
+  console.log(`\n=== contract ${raw}`)
+  try {
+    const addr = getAddress(raw)
+    const code = (await client.getCode({ address: addr })) ?? '0x'
+    const kind = runtimeMatches(code, SD_RUNTIME) ? 'SplitDistributor' : runtimeMatches(code, SS_RUNTIME) ? 'ScheduledSplit' : null
+    console.log(`runtime code ${code.length / 2 - 1} bytes, matches artifact: ${kind ?? 'NO MATCH'}`)
+    if (!kind) continue
+    const abi = kind === 'SplitDistributor' ? SD_ABI : SS_ABI
+    const counter = kind === 'SplitDistributor' ? 'distributionCount' : 'scheduleCount'
+    for (const fn of ['usdc', 'MAX_RECIPIENTS', counter]) {
+      console.log(`${fn}() = ${fmt(await client.readContract({ address: addr, abi, functionName: fn as never }))}`)
+    }
+    let lo = 0n, hi = head
+    while (lo < hi) {
+      const mid = (lo + hi) / 2n
+      const c = await client.getCode({ address: addr, blockNumber: mid })
+      if (c && c !== '0x') hi = mid; else lo = mid + 1n
+    }
+    console.log(`deploy block ${lo}`)
   } catch (e) { console.log(`FAILED ${(e as Error).message.split('\n')[0]}`) }
 }
