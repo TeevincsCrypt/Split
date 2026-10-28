@@ -13,12 +13,12 @@
 | 1 | Project built in Arc Studio | Owner's rules | Arc Studio project https://studio.arc.io/app/767489e9-b81c-4ccf-a5df-94881d408a4d. Every contract and app file was generated with `arc-studio run --session split` and pulled with `arc-studio pull`. The prompts are in `arc-studio/prompts/`. | ✅ |
 | 2 | Arc Studio project URL visible to judges | Owner's rules | README "Built in Arc Studio" section; `docs/SUBMISSION.md` | ✅ |
 | 3 | Arc Studio usage shown in demo video and description | Owner's rules | `docs/DEMO_SCRIPT.md` (Arc Studio segment); `docs/SUBMISSION.md` | ⏳ owner records the video |
-| 4 | Deployed and functional on **Arc Mainnet** (testnet-only excluded) | Owner's rules; secondary listing | Deploy page `/deploy`; `docs/DEPLOYMENT.md` §2 | ⏳ owner deploys (needs approval + real USDC) |
-| 5 | Moves real USDC | Owner's rules | One mainnet distribution through the app | ⏳ after #4 |
+| 4 | Deployed and functional on **Arc Mainnet** (testnet-only excluded) | Owner's rules; secondary listing | Deploy page `/deploy`; `docs/DEPLOYMENT.md` §2 | ✅ both contracts deployed by owner (`docs/MAINNET_PROOF.md`) |
+| 5 | Moves real USDC | Owner's rules | One mainnet distribution through the app | ✅ instant + bot-released scheduled payment |
 | 6 | Proven on testnet first | Owner's rules | Testnet contract `0x43a1…9498` (Arc Studio deploy). Wallet-signed testnet distribution → `docs/TESTNET_PROOF.md` | ⏳ owner runs the testnet split |
 | 7 | Public code repository | Secondary listing | https://github.com/teevincscrypt/split | ✅ (confirm the repo is public) |
-| 8 | Working product, not a mockup | Secondary listing | Real contract and real wallet flow, with no simulated payments | ✅ code / ⏳ mainnet |
-| 9 | Submission description | DoraHacks form | `docs/SUBMISSION.md` | ✅ draft (fill in mainnet facts) |
+| 8 | Working product, not a mockup | Secondary listing | Real contract and real wallet flow, with no simulated payments | ✅ live on mainnet |
+| 9 | Submission description | DoraHacks form | `docs/SUBMISSION.md` | ✅ mainnet facts filled in |
 
 ## Verified network facts
 
@@ -28,7 +28,7 @@ They match public listings (The Graph, Bitquery) for chain IDs and USDC.
 | | Arc Testnet | Arc Mainnet |
 |---|---|---|
 | Chain ID | 5042002 | 5042 |
-| RPC | https://rpc.testnet.arc.io | https://rpc.mainnet.arc.io (may be permissioned per a secondary source) |
+| RPC | https://rpc.testnet.arc.io | https://rpc.mainnet.arc.io (public; verified 2026-10-28) |
 | Gas token | USDC (native view, 18 decimals) | USDC (native view, 18 decimals) |
 | USDC ERC-20 | `0x3600000000000000000000000000000000000000`, 6 decimals | same |
 | Explorer | https://explorer.testnet.arc.io | https://explorer.arc.io |
