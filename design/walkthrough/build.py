@@ -1,6 +1,8 @@
 """Edit the raw screen recording into the Split walkthrough (voiceover, captions, music).
 
-Usage: python3 build.py <recording.mp4> <kokoro-model-dir> <work-dir> <out.mp4>
+Usage: python3 build.py <recording.mp4> <kokoro-model-dir> <work-dir> <out.mp4> [studio.webm]
+
+studio.webm is the 1760x800 Arc Studio capture made by record-studio.cjs.
 
 Each segment is a range of the recording plus the sentences narrated over it. A segment's
 length is set by its narration; the footage is sped up to fit (never beyond `maxspeed`), and
@@ -15,6 +17,7 @@ import numpy as np
 import soundfile as sf
 
 SRC, KOKORO, WORK, OUT = sys.argv[1], Path(sys.argv[2]), Path(sys.argv[3]), sys.argv[4]
+STUDIO = sys.argv[5] if len(sys.argv) > 5 else None
 HERE = Path(__file__).resolve().parent
 WORK.mkdir(parents=True, exist_ok=True)
 FPS = 30
@@ -29,6 +32,17 @@ SEGMENTS = [
         s('This is Split.'),
         s('One transaction that pays your whole team in USDC.'),
         s('Built in Arc Studio, and live on Arc mainnet.')]),
+    dict(studio=True, src=(10, 31), maxspeed=2.0, label='Built in Arc Studio', lines=[
+        s('Split was built in Arc Studio.'),
+        s('I gave it the spec, and it wrote the contracts and tests, ran a Slither audit, and deployed to Arc testnet first.'),
+        s('Then I pulled the code into GitHub with the Arc Studio CLI.')]),
+    dict(studio=True, src=(34, 44.5), maxspeed=1.3, label='Arc Studio · Code', lines=[
+        s("This is the SplitDistributor contract it generated, built on OpenZeppelin.",
+          "This is the Split Distributor contract it generated, built on Open Zeppelin.")]),
+    dict(studio=True, src=(44.5, 59.5), maxspeed=1.5, label='Arc Studio · Contracts', lines=[
+        s('Then ScheduledSplit, the escrow contract for scheduled payments.',
+          'Then Scheduled Split, the escrow contract for scheduled payments.'),
+        s('The Contracts panel lists every function it exposes.')]),
     dict(src=(29, 60), maxspeed=2.0, label='Connect', lines=[
         s('Split is live at paywsplit.vercel.app.', 'Split is live at pay w split dot vercel dot app.'),
         s("I'll connect my Rabby wallet on Arc mainnet.")]),
@@ -83,6 +97,9 @@ SEGMENTS = [
         s('Split. Built in Arc Studio, live on Arc mainnet.'),
         s('Pay everyone, in one move.')]),
 ]
+
+if not STUDIO:
+    SEGMENTS = [seg for seg in SEGMENTS if not seg.get('studio')]
 
 
 def run(*cmd):
@@ -139,10 +156,11 @@ for i, seg in enumerate(SEGMENTS):
         a, b = seg['src']
         sp, d = seg['speed'], seg['dur']
         hold = max(0.0, d - (b - a) / sp) + 0.2
-        vf = (f'[0:v]crop=1280:582:0:40,setpts=(PTS-STARTPTS)/{sp:.4f},fps={FPS},scale=1760:800:flags=lanczos,'
+        pre = 'setsar=1' if seg.get('studio') else 'crop=1280:582:0:40'
+        vf = (f'[0:v]{pre},setpts=(PTS-STARTPTS)/{sp:.4f},fps={FPS},scale=1760:800:flags=lanczos,'
               f'tpad=stop_mode=clone:stop_duration={hold:.2f},trim=duration={d}[v];'
               f'[1][v]overlay=80:30:shortest=1[b];[b][2]overlay=0:0:shortest=1,format=yuv420p')
-        run('ffmpeg', '-v', 'error', '-y', '-ss', f'{a}', '-to', f'{b}', '-i', SRC,
+        run('ffmpeg', '-v', 'error', '-y', '-ss', f'{a}', '-to', f'{b}', '-i', STUDIO if seg.get('studio') else SRC,
             '-loop', '1', '-framerate', str(FPS), '-i', str(WORK / 'bg.png'),
             '-loop', '1', '-framerate', str(FPS), '-i', str(WORK / 'frame.png'),
             '-filter_complex', vf, '-an', '-c:v', 'libx264', '-crf', '14', '-preset', 'medium', '-r', str(FPS), '-t', f'{d}', str(out))
