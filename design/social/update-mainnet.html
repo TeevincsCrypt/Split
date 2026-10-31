@@ -1,0 +1,59 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=block" rel="stylesheet">
+<style>
+*{box-sizing:border-box}html,body{margin:0}
+.h{position:relative;width:1600px;height:900px;overflow:hidden;font-family:Manrope,sans-serif;color:#141414;
+ background:#F3F2F1;
+ background-image:linear-gradient(#EBC9D533 1px,transparent 1px),linear-gradient(90deg,#EBC9D533 1px,transparent 1px);
+ background-size:40px 40px}
+.ring{position:absolute;right:-220px;bottom:-260px;width:760px;height:760px;border-radius:50%;
+ background:radial-gradient(circle,#641532 0 23%,#D99BB0 23% 40%,#EBC9D5 40% 58%,#F7E9EE 58% 76%,transparent 76%);opacity:.9}
+.mark{position:absolute;left:100px;top:84px;display:flex;align-items:center;gap:14px;font-size:30px;font-weight:800;letter-spacing:-0.02em}
+.copy{position:absolute;left:100px;top:200px;width:760px}
+.kicker{display:inline-flex;align-items:center;gap:12px;font-size:22px;font-weight:700;color:#641532;background:#F7E9EE;border:1px solid #EBC9D5;padding:10px 20px;border-radius:999px}
+.dot{width:10px;height:10px;border-radius:50%;background:#641532}
+h1{margin:30px 0 22px;font-size:104px;line-height:.98;font-weight:800;letter-spacing:-0.04em}
+h1 span{color:#641532}
+p{margin:0;font-size:30px;line-height:1.4;color:#6F6B68;font-weight:500}
+.chips{display:flex;flex-wrap:wrap;gap:12px;margin-top:40px;width:760px}
+.chip{font-size:21px;font-weight:700;padding:12px 20px;border-radius:999px;background:#fff;border:1px solid #ECEAE8;box-shadow:0 6px 18px rgba(20,20,20,.05)}
+.chip.dark{background:#641532;color:#fff;border-color:#641532}
+.url{position:absolute;left:100px;bottom:80px;font-size:26px;font-weight:800;color:#641532}
+.url span{color:#A29E9A;font-weight:600}
+.card{position:absolute;right:110px;top:150px;width:520px;background:#fff;border-radius:36px;padding:34px 36px;
+ box-shadow:0 24px 60px rgba(20,20,20,.10);border:1px solid #ECEAE8}
+.lab{display:flex;justify-content:space-between;align-items:center;font-size:15px;letter-spacing:.14em;font-weight:800;color:#A29E9A}
+.status{font-size:15px;font-weight:800;color:#1E7A4C;background:#E5F4EC;padding:6px 12px;border-radius:999px;letter-spacing:.02em}
+.pay{display:flex;align-items:baseline;gap:10px;margin:16px 0 6px}
+.pay b{font-size:64px;font-weight:800;letter-spacing:-0.03em}.pay small{font-size:22px;color:#6F6B68;font-weight:700}
+.sub{font-size:19px;color:#6F6B68;font-weight:600;margin-bottom:18px}
+.row{display:flex;justify-content:space-between;font-size:20px;font-weight:700;margin-top:14px}
+.bar{height:8px;border-radius:9px;background:#F1EEEC;margin-top:8px;overflow:hidden}.bar i{display:block;height:100%;width:50%;background:#641532;border-radius:9px}
+.row em{font-style:normal;color:#641532}
+.time{margin-top:26px;padding:18px 20px;border-radius:20px;background:#F7E9EE;display:grid;grid-template-columns:auto 1fr;gap:8px 18px;font-size:19px;font-weight:700}
+.time span{color:#6F6B68;font-weight:600}
+.foot{margin-top:20px;padding-top:16px;border-top:1px solid #ECEAE8;display:flex;justify-content:space-between;font-size:17px;color:#6F6B68;font-weight:700}
+.foot code{font-family:'DejaVu Sans Mono',monospace;font-size:15px;color:#141414}
+</style></head><body><div class="h">
+<div class="ring"></div>
+<div class="mark"><svg height="42" viewBox="0 0 107 145"><path fill="#641532" d="M8.00 47.25 L70.88 10.21 A16 16 0 1 1 79.00 40.00 L22.00 40.00 L22.00 60.00 L99.00 60.00 L99.00 97.75 L36.12 134.79 A16 16 0 1 1 28.00 105.00 L85.00 105.00 L85.00 85.00 L8.00 85.00 Z"/></svg>Split</div>
+<div class="copy">
+ <div class="kicker"><i class="dot"></i>Submitted to Arc Microgrants 2</div>
+ <h1>Live on<br><span>Arc mainnet.</span></h1>
+ <p>Pay your whole team in USDC with one transaction. Now or on schedule.</p>
+ <div class="chips">
+  <span class="chip dark">Real USDC</span><span class="chip">Auto salaries &amp; bills</span>
+  <span class="chip">Non-custodial</span><span class="chip">Built in Arc Studio</span>
+ </div>
+</div>
+<div class="url">paywsplit.vercel.app</div>
+<div class="card">
+ <div class="lab">SCHEDULED PAYOUT · MAINNET <span class="status">Paid automatically</span></div>
+ <div class="pay"><b>0.50</b><small>USDC</small></div>
+ <div class="sub">Schedule #1 · 2 recipients</div>
+ <div class="row"><span>Recipient 1</span><em>0.25</em></div><div class="bar"><i></i></div>
+ <div class="row"><span>Recipient 2</span><em>0.25</em></div><div class="bar"><i></i></div>
+ <div class="time"><span>Due</span>21:31:00 UTC<span>Released</span>21:31:11 UTC, by the keeper bot</div>
+ <div class="foot"><span>Tx</span><code>0xe358f7e6…bcde44</code></div>
+</div>
+</div></body></html>
